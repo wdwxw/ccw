@@ -60,11 +60,11 @@
     --color-accent-surface:#3A2A1A;
     --color-accent-glow:   #4A3520;
 
-    --color-text-primary:  #E8EDF4;
-    --color-text-secondary:#9A9FA8;
+    --color-text-primary:   #e4dece;
+    --color-text-secondary:#afa89c;
     --color-text-muted:    #706860;
 
-    --color-border:        #2A2D32;
+    --color-border:        rgba(255, 210, 140, 0.07);
     --color-border-muted:  rgba(255, 210, 140, 0.04);
 
     --color-success:       #3fb950;
