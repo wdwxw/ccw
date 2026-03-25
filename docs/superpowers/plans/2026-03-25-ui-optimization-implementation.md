@@ -113,11 +113,19 @@ git commit -m "feat(ui): update color system - warmer backgrounds, amber accent"
 + padding: '4px 8px'
 ```
 
-- [ ] **Step 3: 提交**
+- [ ] **Step 3: 增强 "Activity" 行字体权重**
+
+在 Activity row 的 div 中，将 `fontWeight: 'medium'` 改为 `fontWeight: 600`：
+```diff
+- <div className="flex items-center gap-2 text-[12px] font-medium" style={{ color: 'var(--t1)' }}>
++ <div className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--t1)', fontWeight: 600 }}>
+```
+
+- [ ] **Step 4: 提交**
 
 ```bash
 git add src/renderer/src/components/Sidebar/Sidebar.tsx
-git commit -m "feat(ui): reduce sidebar width 258→240px, adjust padding"
+git commit -m "feat(ui): reduce sidebar width 258→240px, adjust padding, bold Activity header"
 ```
 
 ---
@@ -137,8 +145,8 @@ git commit -m "feat(ui): reduce sidebar width 258→240px, adjust padding"
 - paddingRight: 12,
 + paddingLeft: 12,
 + paddingRight: 12,
-+ paddingTop: 6,
-+ paddingBottom: 6,
++ paddingTop: 5,
++ paddingBottom: 5,
 ```
 
 - [ ] **Step 2: 调整面包屑字体大小**
@@ -344,8 +352,12 @@ git commit -m "feat(ui): increase ChipBtn padding for better touch target"
 
 - [ ] **Step 1: 在 TerminalPanel Tab 栏中移除路径显示（保留按钮）**
 
-定位 Tab 栏右侧的路径 span 元素，移除或缩小范围
-（保留 FolderOpen、时钟、滚动按钮）
+在 Tab 栏右侧功能按钮区域内，找到包含 `terminalPath` 状态变量的 span 元素：
+```tsx
+// 大约在 Tab 栏右侧，className 包含 "pr-3" 的 div 内
+<span className="max-w-[300px] truncate">{terminalPath}</span>
+```
+将此 span 移除或注释掉（保留其父级 div 中的 FolderOpen、时钟、滚动按钮）
 
 - [ ] **Step 2: 在 StatusBar 中添加终端路径显示**
 
