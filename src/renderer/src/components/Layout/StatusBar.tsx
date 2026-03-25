@@ -33,9 +33,11 @@ export function StatusBar(): React.ReactElement {
             }}
           />
           <span style={{ color: 'var(--t3)' }}>{selectedWorktree.branch}</span>
-          <span className="ml-3 max-w-[400px] truncate" style={{ opacity: 0.5 }}>
-            {selectedWorktree.path}
-          </span>
+          {selectedWorktree && (
+            <span className="ml-2 max-w-[300px] truncate" style={{ opacity: 0.5 }}>
+              {selectedWorktree.path}
+            </span>
+          )}
         </>
       ) : null}
 

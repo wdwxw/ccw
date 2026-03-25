@@ -582,7 +582,6 @@ export function TerminalPanel(): React.ReactElement {
             className="flex items-center gap-2 pr-3"
             style={{ color: 'var(--t4)', fontSize: 'calc(11px * var(--font-scale))' }}
           >
-            <span className="max-w-[300px] truncate">{terminalPath}</span>
             <button
               onClick={handleOpenInFinder}
               className="flex items-center gap-1 rounded px-[6px] py-[3px] transition-colors duration-100"
