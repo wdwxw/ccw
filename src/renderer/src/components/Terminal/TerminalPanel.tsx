@@ -459,7 +459,7 @@ export function TerminalPanel(): React.ReactElement {
         <div
           className="flex items-stretch shrink-0"
           style={{
-            height: 34,
+            height: 32,
             background: 'var(--color-bg-secondary)',
             borderBottom: '0.5px solid var(--bs, rgba(255,220,160,0.07))',
           }}
