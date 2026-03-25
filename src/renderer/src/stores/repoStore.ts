@@ -13,9 +13,11 @@ interface RepoState {
   selectedWorktreeId: string | null
   loading: boolean
   collapseAllTrigger: number
+  terminalPath: string
   _showError?: (msg: string) => void
 
   loadRepos: () => Promise<void>
+  setTerminalPath: (path: string) => void
   addRepo: () => Promise<void>
   removeRepo: (repoId: string) => Promise<void>
   createWorktree: (repoId: string) => Promise<void>
@@ -33,6 +35,9 @@ export const useRepoStore = create<RepoState>((set, get) => ({
   selectedWorktreeId: null,
   loading: false,
   collapseAllTrigger: 0,
+  terminalPath: '',
+
+  setTerminalPath: (path) => set({ terminalPath: path }),
 
   loadRepos: async () => {
     set({ loading: true })

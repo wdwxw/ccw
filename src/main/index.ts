@@ -24,11 +24,11 @@ const KNOWN_DEV_APPS: Array<{
   icon: string
   category: 'editor' | 'ide' | 'terminal'
 }> = [
-  { bundleName: 'Visual Studio Code.app', id: 'vscode', name: 'VS Code', command: 'code', icon: 'code', category: 'editor' },
+  { bundleName: 'Visual Studio Code.app', id: 'vscode', name: 'VS Code', command: 'open -a Visual Studio Code', icon: 'code', category: 'editor' },
   { bundleName: 'Cursor.app', id: 'cursor', name: 'Cursor', command: 'open -a Cursor', icon: 'edit', category: 'editor' },
   { bundleName: 'IntelliJ IDEA.app', id: 'idea', name: 'IntelliJ IDEA', command: 'open -a IntelliJ IDEA', icon: 'braces', category: 'ide' },
   { bundleName: 'IntelliJ IDEA CE.app', id: 'idea-ce', name: 'IDEA CE', command: 'open -a "IntelliJ IDEA CE"', icon: 'braces', category: 'ide' },
-  { bundleName: 'Zed.app', id: 'zed', name: 'Zed', command: 'zed', icon: 'zap', category: 'editor' },
+  { bundleName: 'Zed.app', id: 'zed', name: 'Zed', command: 'open -a Zed', icon: 'zap', category: 'editor' },
   { bundleName: 'WebStorm.app', id: 'webstorm', name: 'WebStorm', command: 'open -a WebStorm', icon: 'globe', category: 'ide' },
   { bundleName: 'PyCharm.app', id: 'pycharm', name: 'PyCharm', command: 'open -a PyCharm', icon: 'braces', category: 'ide' },
   { bundleName: 'PyCharm CE.app', id: 'pycharm-ce', name: 'PyCharm CE', command: 'open -a "PyCharm CE"', icon: 'braces', category: 'ide' },
