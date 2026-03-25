@@ -15,7 +15,7 @@ export function TerminalToolbar({
     <div
       className="flex items-center gap-[2px] px-2"
       style={{
-        height: 36,
+        height: 34,
         background: 'var(--color-bg-primary)',
         borderTop: '0.5px solid var(--bs, rgba(255,220,160,0.07))',
       }}
