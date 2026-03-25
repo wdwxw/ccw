@@ -15,7 +15,7 @@ export function StatusBar(): React.ReactElement {
     <div
       className="flex items-center px-3 text-[10.5px]"
       style={{
-        height: 20,
+        height: 22,
         background: 'var(--color-bg-secondary)',
         borderTop: '0.5px solid var(--bs, rgba(255,220,160,0.07))',
         color: 'var(--t4)',
