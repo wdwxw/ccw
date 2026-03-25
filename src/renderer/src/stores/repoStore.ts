@@ -114,13 +114,15 @@ export const useRepoStore = create<RepoState>((set, get) => ({
 
     const name = await window.api.git.getRepoName(dirPath)
     const gitWorktrees = await window.api.git.listWorktrees(dirPath)
+    // 只保留当前目录本身的 worktree（过滤掉同仓库的其他 worktree）
+    const actualWorktrees = gitWorktrees.filter((gw) => gw.path === dirPath)
 
     const newRepo: Repo = {
       id: generateId(),
       name,
       path: dirPath,
       addedAt: Date.now(),
-      worktrees: gitWorktrees.map((gw) => ({
+      worktrees: actualWorktrees.map((gw) => ({
         id: generateId(),
         repoId: '',
         branch: gw.branch,
