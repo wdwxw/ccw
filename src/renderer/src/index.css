@@ -5,20 +5,20 @@
 @layer base {
   /* ── Default (dark) theme ─────────────────────────────────── */
   :root {
-    --color-bg-primary:    #0D1117;
-    --color-bg-secondary:  #161B22;
-    --color-bg-tertiary:   #1C2128;
-    --color-bg-elevated:   #21262D;
-    --color-accent:        #1A56DB;
-    --color-accent-hover:  #1E63F0;
-    --color-accent-muted:  rgba(26, 86, 219, 0.15);
-    --color-accent-subtle: #182848;
-    --color-accent-surface:#1B2F52;
-    --color-accent-glow:   #1A3A6B;
-    --color-text-primary:  #E6EDF3;
-    --color-text-secondary:#8B949E;
+    --color-bg-primary:    #111213;
+    --color-bg-secondary:  #1A1C1E;
+    --color-bg-tertiary:   #1E2022;
+    --color-bg-elevated:   #252729;
+    --color-accent:        #C4956A;
+    --color-accent-hover:  #D4A574;
+    --color-accent-muted:  rgba(196, 149, 106, 0.12);
+    --color-accent-subtle: #2A2018;
+    --color-accent-surface:#3A2A1A;
+    --color-accent-glow:   #4A3520;
+    --color-text-primary:  #E8EDF4;
+    --color-text-secondary:#9A9FA8;
     --color-text-muted:    #484F58;
-    --color-border:        #30363D;
+    --color-border:        #2A2D32;
     --color-border-muted:  #21262D;
     --color-success:       #3FB950;
     --color-success-subtle:#1B3027;
@@ -53,18 +53,18 @@
     --color-bg-tertiary:   #1e1c18;
     --color-bg-elevated:   #252219;
 
-    --color-accent:        #f0a020;
-    --color-accent-hover:  #f5aa30;
-    --color-accent-muted:  rgba(240, 160, 32, 0.12);
-    --color-accent-subtle: #26220c;
-    --color-accent-surface:#302810;
-    --color-accent-glow:   #382e12;
+    --color-accent:        #C4956A;
+    --color-accent-hover:  #D4A574;
+    --color-accent-muted:  rgba(196, 149, 106, 0.12);
+    --color-accent-subtle: #2A2018;
+    --color-accent-surface:#3A2A1A;
+    --color-accent-glow:   #4A3520;
 
-    --color-text-primary:  #e4dece;
-    --color-text-secondary:#afa89c;
+    --color-text-primary:  #E8EDF4;
+    --color-text-secondary:#9A9FA8;
     --color-text-muted:    #706860;
 
-    --color-border:        rgba(255, 210, 140, 0.07);
+    --color-border:        #2A2D32;
     --color-border-muted:  rgba(255, 210, 140, 0.04);
 
     --color-success:       #3fb950;
@@ -88,7 +88,7 @@
     --t2:     #afa89c;
     --t3:     #706860;
     --t4:     #4a4540;
-    --orange: #f0a020;
+    --orange: #C4956A;
   }
 
   /* ── Global resets ────────────────────────────────────────── */
