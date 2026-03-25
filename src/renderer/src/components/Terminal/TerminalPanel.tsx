@@ -9,7 +9,7 @@ import { TerminalToolbar } from './TerminalToolbar'
 import { CommandInput } from './CommandInput'
 import { QuickButtonsBar } from './QuickButtonsBar'
 import { TerminalLogModal } from './TerminalLogModal'
-import { FolderOpen, X, Pencil } from 'lucide-react'
+import { FolderOpen, X, Pencil, ArrowDown } from 'lucide-react'
 
 // Warm terminal theme — closely mirrors reference, subtle warm shift
 const XTERM_THEME = {
@@ -448,6 +448,10 @@ export function TerminalPanel(): React.ReactElement {
     }
   }, [currentCwd])
 
+  const handleScrollToBottom = useCallback(() => {
+    xtermRef.current?.scrollToBottom()
+  }, [])
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* ── Single unified tabbar (34px, matches reference) ─────── */}
@@ -613,6 +617,23 @@ export function TerminalPanel(): React.ReactElement {
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="8" cy="8" r="6"/><path d="M8 5v3.5l2.5 1.4"/>
               </svg>
+            </button>
+            {/* scroll to bottom */}
+            <button
+              className="flex items-center justify-center rounded p-[3px] transition-colors duration-100"
+              style={{ color: 'var(--t4)' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--t3)'
+                e.currentTarget.style.background = 'var(--hv)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--t4)'
+                e.currentTarget.style.background = 'transparent'
+              }}
+              onClick={handleScrollToBottom}
+              title="滚动到底部"
+            >
+              <ArrowDown size={12} />
             </button>
           </div>
         </div>
