@@ -46,10 +46,10 @@ export function RepoItem({ repo }: RepoItemProps): React.ReactElement {
     <div style={{ userSelect: 'none' }}>
       {/* ── Repo row (ws-item style) ─────────────────────────── */}
       <div
-        className="group flex cursor-pointer items-center gap-[9px] rounded-[6px] transition-colors duration-100"
+        className="group flex cursor-pointer items-center gap-[9px] rounded-[8px] transition-colors duration-100"
         style={{
-          padding: '7px 8px',
-          marginBottom: 1,
+          padding: '8px 10px',
+          marginBottom: 2,
           background: isSelected ? 'var(--ac, rgba(255,220,160,0.08))' : 'transparent',
         }}
         onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'var(--hv)' }}
@@ -65,7 +65,7 @@ export function RepoItem({ repo }: RepoItemProps): React.ReactElement {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             className="truncate text-[12px] leading-[1.3]"
-            style={{ color: isSelected ? 'var(--t1)' : 'var(--t2)' }}
+            style={{ color: isSelected ? 'var(--t1)' : 'var(--t2)', fontWeight: 500 }}
           >
             {repo.name}
           </div>
@@ -153,7 +153,7 @@ function ActionBtn({
     <button
       onClick={onClick}
       title={title}
-      className="flex items-center justify-center rounded p-[3px] transition-colors duration-100"
+      className="flex items-center justify-center rounded p-[4px] transition-colors duration-100"
       style={{ color: 'var(--t4)' }}
       onMouseEnter={(e) => {
         e.currentTarget.style.color = 'var(--t3)'
