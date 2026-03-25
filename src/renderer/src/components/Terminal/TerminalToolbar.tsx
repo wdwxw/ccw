@@ -46,7 +46,7 @@ function ChipBtn({
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-[5px] rounded-[5px] px-2 py-[3px] text-[11.5px] transition-colors duration-100"
+      className="flex items-center gap-[5px] rounded-[6px] px-[8px] py-[4px] text-[11.5px] transition-colors duration-100"
       style={{
         color: active ? 'var(--t2)' : 'var(--t3)',
         background: active ? 'var(--hv)' : 'transparent',
