@@ -76,10 +76,10 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
     <>
       {/* ws-item style — indented under repo */}
       <div
-        className="group flex cursor-pointer items-center gap-[9px] rounded-[6px] transition-colors duration-100"
+        className="group flex cursor-pointer items-center gap-[9px] rounded-[8px] transition-colors duration-100"
         style={{
-          padding: '7px 8px 7px 16px',
-          marginBottom: 1,
+          padding: '8px 10px 8px 18px',
+          marginBottom: 2,
           opacity: isArchived ? 0.4 : 1,
           background: isSelected ? 'var(--ac, rgba(255,220,160,0.08))' : 'transparent',
         }}
@@ -130,6 +130,7 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
                 style={{
                   color: isSelected ? 'var(--t1)' : 'var(--t2)',
                   textDecoration: isArchived ? 'line-through' : undefined,
+                  fontWeight: 500,
                 }}
               >
                 {worktree.branch}
@@ -148,7 +149,7 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
             <button
               onClick={startRename}
               title="改名"
-              className="flex items-center justify-center rounded p-[3px] transition-colors duration-100"
+              className="flex items-center justify-center rounded p-[4px] transition-colors duration-100"
               style={{ color: 'var(--t4)' }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = 'var(--color-accent)'
@@ -169,7 +170,7 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
             <button
               onClick={(e) => { e.stopPropagation(); setShowConfirm(true) }}
               title="归档"
-              className="flex items-center justify-center rounded p-[3px] transition-colors duration-100"
+              className="flex items-center justify-center rounded p-[4px] transition-colors duration-100"
               style={{ color: 'var(--t4)' }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = 'var(--color-warning)'
