@@ -1,0 +1,155 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ── Default (dark) theme ─────────────────────────────────── */
+  :root {
+    --color-bg-primary:    #0D1117;
+    --color-bg-secondary:  #161B22;
+    --color-bg-tertiary:   #1C2128;
+    --color-bg-elevated:   #21262D;
+    --color-accent:        #1A56DB;
+    --color-accent-hover:  #1E63F0;
+    --color-accent-muted:  rgba(26, 86, 219, 0.15);
+    --color-accent-subtle: #182848;
+    --color-accent-surface:#1B2F52;
+    --color-accent-glow:   #1A3A6B;
+    --color-text-primary:  #E6EDF3;
+    --color-text-secondary:#8B949E;
+    --color-text-muted:    #484F58;
+    --color-border:        #30363D;
+    --color-border-muted:  #21262D;
+    --color-success:       #3FB950;
+    --color-success-subtle:#1B3027;
+    --color-warning:       #D29922;
+    --color-warning-subtle:#2D2714;
+    --color-danger:        #F85149;
+    --color-danger-subtle: #301416;
+    --color-terminal-bg:   #1e1e1e;
+    --color-terminal-green:#3FB950;
+    --color-terminal-cyan: #58D1EB;
+    --color-terminal-yellow:#D29922;
+    --font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', 'Menlo', monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+    --font-scale: 1;
+  }
+
+  /* ── Brown theme — reference palette with minimal warm shift ─ */
+  /*                                                              */
+  /*  Reference → Brown (same luminance, slight warm hue shift)  */
+  /*  #111111 bg0  →  #131210  barely warm near-black            */
+  /*  #161616 bg1  →  #181614  sidebar/header                    */
+  /*  #1d1d1d bg2  →  #1e1c18  elevated surfaces                 */
+  /*  #242424 bg3  →  #252219  highest surface                   */
+  /*  #e8e8e8 t1   →  #e4dece  warm white text                   */
+  /*  #b2b2b2 t2   →  #afa89c  warm secondary text               */
+  /*  #707070 t3   →  #706860  warm muted text                   */
+  /*  #454545 t4   →  #4a4540  warm very-muted                   */
+  /*  #f59e0b orange→ #f0a020  amber (close to original)         */
+  [data-theme="brown"] {
+    --color-bg-primary:    #131210;
+    --color-bg-secondary:  #181614;
+    --color-bg-tertiary:   #1e1c18;
+    --color-bg-elevated:   #252219;
+
+    --color-accent:        #f0a020;
+    --color-accent-hover:  #f5aa30;
+    --color-accent-muted:  rgba(240, 160, 32, 0.12);
+    --color-accent-subtle: #26220c;
+    --color-accent-surface:#302810;
+    --color-accent-glow:   #382e12;
+
+    --color-text-primary:  #e4dece;
+    --color-text-secondary:#afa89c;
+    --color-text-muted:    #706860;
+
+    --color-border:        rgba(255, 210, 140, 0.07);
+    --color-border-muted:  rgba(255, 210, 140, 0.04);
+
+    --color-success:       #3fb950;
+    --color-success-subtle:#1a2c1a;
+    --color-warning:       #d29922;
+    --color-warning-subtle:#2a2210;
+    --color-danger:        #f85149;
+    --color-danger-subtle: #2c1010;
+
+    --color-terminal-bg:   #0f0e0c;
+    --color-terminal-green:#3fb950;
+    --color-terminal-cyan: #58d1eb;
+    --color-terminal-yellow:#d29922;
+
+    /* shorthand tokens — mirror reference naming exactly */
+    --bs:     rgba(255, 210, 140, 0.06);
+    --bm:     rgba(255, 210, 140, 0.09);
+    --hv:     rgba(255, 210, 140, 0.045);
+    --ac:     rgba(255, 210, 140, 0.075);
+    --t1:     #e4dece;
+    --t2:     #afa89c;
+    --t3:     #706860;
+    --t4:     #4a4540;
+    --orange: #f0a020;
+  }
+
+  /* ── Global resets ────────────────────────────────────────── */
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.4;
+    background: var(--color-bg-primary);
+    color: var(--color-text-secondary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: inherit;
+  }
+
+  /* ── Scrollbars ───────────────────────────────────────────── */
+  ::-webkit-scrollbar        { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track  { background: transparent; }
+  ::-webkit-scrollbar-thumb  { background: var(--color-border); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+
+  ::selection { background: var(--color-accent-muted); }
+
+  /* ── Electron drag ────────────────────────────────────────── */
+  .drag-region { -webkit-app-region: drag; }
+  .no-drag     { -webkit-app-region: no-drag; }
+
+  /* ── Font scale overrides — only font-size, layout untouched ── */
+  .text-\[10px\]    { font-size: calc(10px   * var(--font-scale)) !important; }
+  .text-\[10\.5px\] { font-size: calc(10.5px * var(--font-scale)) !important; }
+  .text-\[11px\]    { font-size: calc(11px   * var(--font-scale)) !important; }
+  .text-\[11\.5px\] { font-size: calc(11.5px * var(--font-scale)) !important; }
+  .text-\[12px\]    { font-size: calc(12px   * var(--font-scale)) !important; }
+  .text-\[13px\]    { font-size: calc(13px   * var(--font-scale)) !important; }
+  .text-xs          { font-size: calc(0.75rem  * var(--font-scale)) !important; }
+  .text-sm          { font-size: calc(0.875rem * var(--font-scale)) !important; }
+  .text-base        { font-size: calc(1rem     * var(--font-scale)) !important; }
+  .text-lg          { font-size: calc(1.125rem * var(--font-scale)) !important; }
+
+  /* ── xterm ────────────────────────────────────────────────── */
+  .xterm { padding: 0; }
+  .xterm-viewport::-webkit-scrollbar { width: 4px; }
+  .xterm-viewport::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 2px; }
+
+  /* ── Brown overrides for Tailwind border classes ──────────── */
+  [data-theme="brown"] .border-border       { border-color: rgba(255,220,160,0.08); }
+  [data-theme="brown"] .border-border-muted { border-color: rgba(255,220,160,0.05); }
+  [data-theme="brown"] ::-webkit-scrollbar-thumb { background: rgba(255,220,160,0.10); }
+  [data-theme="brown"] ::-webkit-scrollbar-thumb:hover { background: rgba(255,220,160,0.20); }
+}
