@@ -15,12 +15,14 @@ export function AppHeader(): React.ReactElement {
 
   return (
     <div
-      className="drag-region flex h-10 shrink-0 items-center gap-2"
+      className="drag-region flex h-9 shrink-0 items-center gap-2"
       style={{
         background: 'var(--color-bg-secondary)',
         borderBottom: '0.5px solid var(--bs)',
         paddingLeft: 12,
         paddingRight: 12,
+        paddingTop: 5,
+        paddingBottom: 5,
       }}
     >
       {/*
@@ -55,7 +57,7 @@ export function AppHeader(): React.ReactElement {
       */}
       <div
         className="flex flex-1 items-center justify-center gap-[5px]"
-        style={{ fontSize: 'calc(12px * var(--font-scale))', userSelect: 'none', pointerEvents: 'none' }}
+        style={{ fontSize: 'calc(11.5px * var(--font-scale))', userSelect: 'none', pointerEvents: 'none' }}
       >
         <span style={{ color: 'var(--t3)', display: 'flex' }}>
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
