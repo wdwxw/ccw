@@ -10,15 +10,15 @@ export function Sidebar(): React.ReactElement {
     <div
       className="flex h-full flex-col overflow-hidden"
       style={{
-        width: 258,
-        minWidth: 258,
+        width: 240,
+        minWidth: 240,
         background: 'var(--color-bg-secondary)',
         borderRight: '0.5px solid var(--bs, rgba(255,220,160,0.07))',
       }}
     >
       {/* ── Activity row ─────────────────────────────────────── */}
-      <div className="flex items-center justify-between" style={{ padding: '12px 14px 8px' }}>
-        <div className="flex items-center gap-2 text-[12px] font-medium" style={{ color: 'var(--t1)' }}>
+      <div className="flex items-center justify-between" style={{ padding: '10px 14px 6px' }}>
+        <div className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--t1)', fontWeight: 600 }}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
             <rect x="1.5" y="1.5" width="5.5" height="13" rx="1.2"/>
             <rect x="9"   y="1.5" width="5.5" height="5.5" rx="1.2"/>
@@ -29,7 +29,7 @@ export function Sidebar(): React.ReactElement {
       </div>
 
       {/* ── Workspaces header ────────────────────────────────── */}
-      <div className="flex items-center justify-between" style={{ padding: '3px 14px 7px' }}>
+      <div className="flex items-center justify-between" style={{ padding: '2px 14px 6px' }}>
         <span className="text-[10.5px] font-medium tracking-[0.05em] uppercase" style={{ color: 'var(--t4)' }}>
           Workspaces
         </span>
@@ -48,7 +48,7 @@ export function Sidebar(): React.ReactElement {
       </div>
 
       {/* ── Workspace list ───────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto" style={{ padding: '2px 8px' }}>
+      <div className="flex-1 overflow-y-auto" style={{ padding: '4px 8px' }}>
         {repos.length === 0 ? (
           <EmptyState />
         ) : (
