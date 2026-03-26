@@ -28,7 +28,8 @@ export function CommandInput({ onSend, onClose }: CommandInputProps): React.Reac
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      if (command.trim()) { onSend(command); setCommand('') }
+      onSend(command)
+      setCommand('')
     }
   }
 

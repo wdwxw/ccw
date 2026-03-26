@@ -49,7 +49,14 @@ export const useRepoStore = create<RepoState>((set, get) => ({
             try {
               const gitWorktrees = await window.api.git.listWorktrees(repo.path)
               const existingArchived = repo.worktrees.filter((w) => w.status === 'archived')
-              const activeWorktrees: Worktree[] = gitWorktrees.map((gw) => {
+              // 只保留 repo 本身 + 已追踪的 worktree，过滤掉同仓库的其他 sibling
+              const savedActivePaths = new Set(
+                repo.worktrees.filter((w) => w.status === 'active').map((w) => w.path)
+              )
+              const filteredWorktrees = gitWorktrees.filter(
+                (gw) => gw.path === repo.path || savedActivePaths.has(gw.path)
+              )
+              const activeWorktrees: Worktree[] = filteredWorktrees.map((gw) => {
                 const existing = repo.worktrees.find(
                   (w) => w.path === gw.path && w.status === 'active'
                 )
@@ -256,7 +263,14 @@ export const useRepoStore = create<RepoState>((set, get) => ({
     try {
       const gitWorktrees = await window.api.git.listWorktrees(repo.path)
       const existingArchived = repo.worktrees.filter((w) => w.status === 'archived')
-      const activeWorktrees: Worktree[] = gitWorktrees.map((gw) => {
+      // 只保留 repo 本身 + 已追踪的 worktree，过滤掉同仓库的其他 sibling
+      const savedActivePaths = new Set(
+        repo.worktrees.filter((w) => w.status === 'active').map((w) => w.path)
+      )
+      const filteredWorktrees = gitWorktrees.filter(
+        (gw) => gw.path === repo.path || savedActivePaths.has(gw.path)
+      )
+      const activeWorktrees: Worktree[] = filteredWorktrees.map((gw) => {
         const existing = repo.worktrees.find((w) => w.path === gw.path && w.status === 'active')
         return (
           existing || {

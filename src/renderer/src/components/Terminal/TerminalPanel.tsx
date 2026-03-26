@@ -66,6 +66,7 @@ export function TerminalPanel(): React.ReactElement {
   const [showLogModal, setShowLogModal] = useState(false)
   const [terminalPath, setTerminalPath] = useState('')
   const [logBuffer, setLogBuffer] = useState('')
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   // 驱动 tab 栏重渲染
   const [_sessionVersion, setSessionVersion] = useState(0)
   // 正在编辑的 tab：{ wtId, index }
@@ -414,7 +415,7 @@ export function TerminalPanel(): React.ReactElement {
   }, [])
 
   const handleSendCommand = useCallback((command: string) => {
-    if (currentPtyId.current && command.trim()) {
+    if (currentPtyId.current) {
       window.api.pty.write(currentPtyId.current, command + '\n')
     }
   }, [])
@@ -451,6 +452,41 @@ export function TerminalPanel(): React.ReactElement {
   const handleScrollToBottom = useCallback(() => {
     xtermRef.current?.scrollToBottom()
   }, [])
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ x: e.clientX, y: e.clientY })
+  }, [])
+
+  const handleContextMenuCopy = useCallback(() => {
+    const selection = xtermRef.current?.getSelection()
+    if (selection) navigator.clipboard.writeText(selection)
+    setContextMenu(null)
+    xtermRef.current?.focus()
+  }, [])
+
+  const handleContextMenuPaste = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      if (currentPtyId.current && text) {
+        window.api.pty.write(currentPtyId.current, text)
+      }
+    } catch { /* ignore */ }
+    setContextMenu(null)
+    xtermRef.current?.focus()
+  }, [])
+
+  useEffect(() => {
+    if (!contextMenu) return
+    const close = () => setContextMenu(null)
+    document.addEventListener('click', close)
+    document.addEventListener('contextmenu', close)
+    return () => {
+      document.removeEventListener('click', close)
+      document.removeEventListener('contextmenu', close)
+    }
+  }, [contextMenu])
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -641,7 +677,7 @@ export function TerminalPanel(): React.ReactElement {
       {/* Terminal body */}
       <div className="relative flex-1 overflow-hidden">
         {hasSelection ? (
-          <div ref={containerRef} className="relative h-full w-full" style={{ background: '#0f0e0c' }} />
+          <div ref={containerRef} className="relative h-full w-full" style={{ background: '#0f0e0c' }} onContextMenu={handleContextMenu} />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3">
             <svg width="40" height="40" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"
@@ -679,6 +715,64 @@ export function TerminalPanel(): React.ReactElement {
           terminalPath={terminalPath}
           onClose={() => setShowLogModal(false)}
         />
+      )}
+
+      {/* Right-click context menu */}
+      {contextMenu && (
+        <div
+          style={{
+            position: 'fixed',
+            left: contextMenu.x,
+            top: contextMenu.y,
+            zIndex: 9999,
+            background: 'var(--color-bg-elevated)',
+            border: '0.5px solid var(--color-border)',
+            borderRadius: 6,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+            minWidth: 110,
+            padding: '3px 0',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={handleContextMenuCopy}
+            style={{
+              display: 'block',
+              width: '100%',
+              textAlign: 'left',
+              padding: '6px 14px',
+              fontSize: 'calc(12px * var(--font-scale))',
+              color: xtermRef.current?.getSelection() ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+              background: 'transparent',
+              border: 'none',
+              cursor: xtermRef.current?.getSelection() ? 'pointer' : 'default',
+            }}
+            onMouseEnter={(e) => {
+              if (xtermRef.current?.getSelection()) e.currentTarget.style.background = 'var(--color-bg-primary)'
+            }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+          >
+            复制
+          </button>
+          <button
+            onClick={handleContextMenuPaste}
+            style={{
+              display: 'block',
+              width: '100%',
+              textAlign: 'left',
+              padding: '6px 14px',
+              fontSize: 'calc(12px * var(--font-scale))',
+              color: 'var(--color-text-primary)',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-bg-primary)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+          >
+            粘贴
+          </button>
+        </div>
       )}
     </div>
   )
