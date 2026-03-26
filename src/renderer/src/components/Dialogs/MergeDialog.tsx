@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { GitMerge, X } from 'lucide-react'
+import { useToastStore } from '../../stores/toastStore'
 
 interface MergeDialogProps {
   repoPath: string
@@ -17,6 +18,7 @@ export function MergeDialog({
   const [strategy, setStrategy] = useState<'merge' | 'rebase' | 'squash'>('merge')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ success: boolean; error?: string } | null>(null)
+  const addToast = useToastStore((s) => s.addToast)
 
   useEffect(() => {
     const load = async (): Promise<void> => {
@@ -54,6 +56,7 @@ export function MergeDialog({
     const res = await window.api.git.merge(repoPath, sourceBranch, targetBranch, strategy)
     setLoading(false)
     if (res.success) {
+      addToast('success', `已将 ${sourceBranch} 合并至 ${targetBranch}`)
       onClose()
     } else {
       setResult(res)
