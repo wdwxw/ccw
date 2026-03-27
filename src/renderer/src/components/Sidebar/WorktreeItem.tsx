@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import type { Worktree } from '../../types'
 import { useRepoStore } from '../../stores/repoStore'
 import { ConfirmDialog } from '../Dialogs/ConfirmDialog'
+import { useNotificationStore } from '../../stores/notificationStore'
 
 interface WorktreeItemProps {
   worktree: Worktree
@@ -22,6 +23,9 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
   const selectWorktree     = useRepoStore((s) => s.selectWorktree)
   const archiveWorktree    = useRepoStore((s) => s.archiveWorktree)
   const renameWorktree     = useRepoStore((s) => s.renameWorktree)
+
+  const count = useNotificationStore((s) => s.notifications[worktree.id] ?? 0)
+  const clearNotification = useNotificationStore((s) => s.clearNotification)
 
   const isSelected = selectedWorktreeId === worktree.id
   const isArchived = worktree.status === 'archived'
@@ -86,11 +90,17 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onMouseMove={handleMouseMove}
-        onClick={() => { if (!isArchived && !isRenaming) selectWorktree(repoId, worktree.id) }}
+        onClick={() => {
+          if (!isArchived && !isRenaming) {
+            selectWorktree(repoId, worktree.id)
+            if (count > 0) clearNotification(worktree.id)
+          }
+        }}
       >
         {/* ws-ind: orange dot */}
         <div style={{ width: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <div
+            className={count > 0 && !isArchived ? 'dot-notif-active' : ''}
             style={{
               width: 7,
               height: 7,
@@ -141,6 +151,28 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
             </>
           )}
         </div>
+
+        {/* Notification count badge */}
+        {count > 0 && !isArchived && (
+          <span
+            style={{
+              fontSize: 10,
+              lineHeight: 1,
+              color: '#8B949E',
+              background: 'rgba(139,148,158,0.15)',
+              borderRadius: 7,
+              padding: '1px 4px',
+              minWidth: 16,
+              height: 16,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            {count}
+          </span>
+        )}
 
         {/* Action buttons on hover */}
         {!isArchived && !isRenaming && (

@@ -6,7 +6,7 @@ import { SearchAddon } from '@xterm/addon-search'
 import '@xterm/xterm/css/xterm.css'
 import { useRepoStore } from '../../stores/repoStore'
 import { TerminalToolbar } from './TerminalToolbar'
-import { CommandInput } from './CommandInput'
+import { CommandInput, CommandInputHandle } from './CommandInput'
 import { QuickButtonsBar } from './QuickButtonsBar'
 import { TerminalLogModal } from './TerminalLogModal'
 import { FolderOpen, X, Pencil, ArrowDown } from 'lucide-react'
@@ -61,6 +61,10 @@ export function TerminalPanel(): React.ReactElement {
   const sessionGroups = useRef(new Map<string, SessionGroup>())
   const currentWorktreeId = useRef<string | null>(null)
   const generationRef = useRef(0)
+
+  const commandInputRef = useRef<CommandInputHandle>(null)
+  // 记录最后获得焦点的区域，用于快捷按钮的插入目标判断
+  const lastFocusArea = useRef<'terminal' | 'commandInput'>('terminal')
 
   const [showCommandInput, setShowCommandInput] = useState(false)
   const [showLogModal, setShowLogModal] = useState(false)
@@ -132,7 +136,7 @@ export function TerminalPanel(): React.ReactElement {
 
       const ptyId = `pty-${wtId}-s${sessionIdx}-${Date.now()}`
 
-      await window.api.pty.create(ptyId, cwd)
+      await window.api.pty.create(ptyId, cwd, wtId)
 
       if (gen !== generationRef.current) {
         await window.api.pty.kill(ptyId)
@@ -149,6 +153,10 @@ export function TerminalPanel(): React.ReactElement {
         if (e.code === 'Enter' && e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
           e.preventDefault()
           window.api.pty.write(ptyId, '\x1b\r')
+          return false
+        }
+        // Cmd+I: 阻止写入终端，让事件冒泡到 window 处理
+        if (e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && (e.key === 'i' || e.key === 'I')) {
           return false
         }
         return true
@@ -223,6 +231,7 @@ export function TerminalPanel(): React.ReactElement {
       setTerminalPath(terminal.cwd)
 
       await window.api.pty.resize(terminal.ptyId, terminal.xterm.cols, terminal.xterm.rows)
+      lastFocusArea.current = 'terminal'
       terminal.xterm.focus()
     },
     []
@@ -365,6 +374,20 @@ export function TerminalPanel(): React.ReactElement {
   // Global keyboard shortcuts for terminal sessions
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd+I: 呼起/关闭 CommandInput 对话框
+      if (e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && (e.key === 'i' || e.key === 'I')) {
+        e.preventDefault()
+        setShowCommandInput((v) => {
+          if (v) {
+            // 关闭时聚回终端
+            lastFocusArea.current = 'terminal'
+            xtermRef.current?.focus()
+          }
+          return !v
+        })
+        return
+      }
+
       if (!e.metaKey) return
       if (!hasSelection || !wtId) return
 
@@ -434,6 +457,15 @@ export function TerminalPanel(): React.ReactElement {
     }
     xtermRef.current?.focus()
   }, [])
+
+  // 快捷按钮点击：根据焦点区域决定插入到终端还是 CommandInput
+  const handleQuickButtonSend = useCallback((content: string, autoEnter: boolean) => {
+    if (showCommandInput && lastFocusArea.current === 'commandInput' && commandInputRef.current) {
+      commandInputRef.current.insertAtCursor(content)
+    } else {
+      handleAppendToInput(content, autoEnter)
+    }
+  }, [showCommandInput, handleAppendToInput])
 
   const handleShowLog = useCallback(async () => {
     if (currentPtyId.current) {
@@ -677,7 +709,7 @@ export function TerminalPanel(): React.ReactElement {
       {/* Terminal body */}
       <div className="relative flex-1 overflow-hidden">
         {hasSelection ? (
-          <div ref={containerRef} className="relative h-full w-full" style={{ background: '#0f0e0c' }} onContextMenu={handleContextMenu} />
+          <div ref={containerRef} className="relative h-full w-full" style={{ background: '#0f0e0c' }} onContextMenu={handleContextMenu} onMouseDown={() => { lastFocusArea.current = 'terminal' }} />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3">
             <svg width="40" height="40" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"
@@ -693,17 +725,34 @@ export function TerminalPanel(): React.ReactElement {
 
       {/* Command input */}
       {showCommandInput && hasSelection && (
-        <CommandInput onSend={handleSendCommand} onClose={() => setShowCommandInput(false)} />
+        <CommandInput
+          ref={commandInputRef}
+          onSend={handleSendCommand}
+          onClose={() => {
+            setShowCommandInput(false)
+            lastFocusArea.current = 'terminal'
+            xtermRef.current?.focus()
+          }}
+          onFocusTextarea={() => { lastFocusArea.current = 'commandInput' }}
+        />
       )}
 
       {/* Quick buttons bar — above the toolbar */}
-      {hasSelection && <QuickButtonsBar onSend={handleAppendToInput} />}
+      {hasSelection && <QuickButtonsBar onSend={handleQuickButtonSend} />}
 
       {/* Toolbar */}
       {hasSelection && (
         <TerminalToolbar
           showCommandInput={showCommandInput}
-          onToggleCommandInput={() => setShowCommandInput(!showCommandInput)}
+          onToggleCommandInput={() => {
+            setShowCommandInput((v) => {
+              if (v) {
+                lastFocusArea.current = 'terminal'
+                xtermRef.current?.focus()
+              }
+              return !v
+            })
+          }}
           onShowLog={handleShowLog}
         />
       )}

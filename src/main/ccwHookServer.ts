@@ -121,7 +121,6 @@ exec "$REAL_CLAUDE" --settings "$HOOKS_TMP" "$@"
   writeFile(
     path.join(ccwDir, 'bin', 'ccw-hook'),
     `#!/usr/bin/env bash
-INPUT=$(cat)
 TYPE="\${1:-stop}"
 PORT="\${CCW_HOOK_PORT:-}"
 WT_ID="\${CCW_WORKTREE_ID:-}"
