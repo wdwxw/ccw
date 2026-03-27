@@ -4,6 +4,10 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import Store from 'electron-store'
 import simpleGit from 'simple-git'
 import * as fs from 'fs'
+import { startHookServer, closeHookServer } from './ccwHookServer'
+import * as os from 'os'
+
+let hookServerPort = 0
 
 const ptyModule = require('node-pty')
 
@@ -275,6 +279,14 @@ app.whenReady().then(async () => {
     }
   }
 
+  // Start CCW hook server for Claude Code notifications
+  hookServerPort = await startHookServer(({ worktreeId, type }) => {
+    const win = getMainWindow()
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('ccw:notification', { worktreeId, type })
+    }
+  })
+
   mainWindowRef = createWindow()
   registerIpcHandlers()
 
@@ -293,6 +305,10 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  closeHookServer()
 })
 
 function registerIpcHandlers(): void {
@@ -442,7 +458,7 @@ function registerIpcHandlers(): void {
   )
 
   // ── PTY / Terminal ──
-  ipcMain.handle('pty:create', (_e, id: string, cwd: string) => {
+  ipcMain.handle('pty:create', (_e, id: string, cwd: string, worktreeId: string) => {
     if (ptyProcesses.has(id)) {
       const existing = ptyProcesses.get(id)!
       existing.pty.kill()
@@ -484,7 +500,11 @@ function registerIpcHandlers(): void {
         COLORTERM: 'truecolor',
         FORCE_COLOR: '3',
         TERM_PROGRAM: 'vscode',
-        LANG: process.env.LANG || 'en_US.UTF-8'
+        LANG: process.env.LANG || 'en_US.UTF-8',
+        CCW_WORKTREE_ID: worktreeId || '',
+        CCW_HOOK_PORT: String(hookServerPort),
+        ZDOTDIR: join(os.homedir(), '.ccw', 'zdotdir'),
+        CCW_ORIG_ZDOTDIR: process.env.ZDOTDIR || os.homedir(),
       }
     })
 
