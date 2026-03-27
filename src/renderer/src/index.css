@@ -33,6 +33,16 @@
     --font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', 'Menlo', monospace;
     --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
     --font-scale: 1;
+    /* dazi 主题简写 token（冷色中性，与 brown 暖色调平行） */
+    --bs:     rgba(255, 255, 255, 0.06);    /* 细边框 */
+    --bm:     rgba(255, 255, 255, 0.09);    /* 中等边框 */
+    --hv:     rgba(255, 255, 255, 0.04);    /* 悬停背景 */
+    --ac:     rgba(255, 255, 255, 0.07);    /* 选中背景 */
+    --t1:     #E8EDF4;                      /* 主文字 = --color-text-primary */
+    --t2:     #9A9FA8;                      /* 次要文字 = --color-text-secondary */
+    --t3:     #606570;                      /* 弱文字（冷中间调） */
+    --t4:     #484F58;                      /* 极弱文字 = --color-text-muted */
+    --orange: #C4956A;                      /* 强调色 = --color-accent */
   }
 
   /* ── Brown theme — reference palette with minimal warm shift ─ */
