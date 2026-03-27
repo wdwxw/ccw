@@ -293,10 +293,10 @@ let flashPhase = false
 
 // 生成 Tray 图标 PNG（纯 Node.js，不依赖外部文件）
 // active=false: 白色普通图标；active=true: 绿色高亮图标
-// 方案9: "CCW" 字母 + 圆角矩形边框，22x22 RGBA
+// 方案9: "CCW" 字母 + 圆角矩形边框，44x44 RGBA（scaleFactor=2，Retina 标准）
 function buildTrayIconPNG(active: boolean): Buffer {
   const zlib = require('zlib') as typeof import('zlib')
-  const SIZE = 22
+  const SIZE = 44
   const rgba = Buffer.alloc(SIZE * SIZE * 4, 0) // 全透明
 
   const fg: [number, number, number] = active ? [63, 185, 80] : [230, 237, 243]
@@ -307,28 +307,33 @@ function buildTrayIconPNG(active: boolean): Buffer {
     rgba[i] = r; rgba[i + 1] = g; rgba[i + 2] = b; rgba[i + 3] = a
   }
   function sp(x: number, y: number): void { setPixel(x, y, ...fg) }
-  function hline(x0: number, x1: number, y: number): void { for (let x = x0; x <= x1; x++) sp(x, y) }
-  function vline(x: number, y0: number, y1: number): void { for (let y = y0; y <= y1; y++) sp(x, y) }
+  // 2x 缩放辅助：以原始 22x22 坐标绘制 2x2 像素块
+  function sp2(ox: number, oy: number): void {
+    const x = ox * 2, y = oy * 2
+    sp(x, y); sp(x+1, y); sp(x, y+1); sp(x+1, y+1)
+  }
+  function hline2(ox0: number, ox1: number, oy: number): void { for (let ox = ox0; ox <= ox1; ox++) sp2(ox, oy) }
+  function vline2(ox: number, oy0: number, oy1: number): void { for (let oy = oy0; oy <= oy1; oy++) sp2(ox, oy) }
 
-  // ── 圆角矩形边框（全画面 0..21）──
+  // ── 圆角矩形边框（原始坐标 0..21）──
   const L = 0, R = 21, T = 0, B = 21
-  hline(L + 2, R - 2, T);   hline(L + 2, R - 2, B)
-  vline(L, T + 2, B - 2);   vline(R, T + 2, B - 2)
-  sp(L+1, T+1); sp(R-1, T+1); sp(L+1, B-1); sp(R-1, B-1)
+  hline2(L + 2, R - 2, T);   hline2(L + 2, R - 2, B)
+  vline2(L, T + 2, B - 2);   vline2(R, T + 2, B - 2)
+  sp2(L+1, T+1); sp2(R-1, T+1); sp2(L+1, B-1); sp2(R-1, B-1)
 
   // ── 字母 C（左，x:2..4, y:8..14）──
-  hline(2, 4, 8); hline(2, 4, 14)
-  vline(2, 9, 13)
+  hline2(2, 4, 8); hline2(2, 4, 14)
+  vline2(2, 9, 13)
 
   // ── 字母 C（中，x:6..8, y:8..14）──
-  hline(6, 8, 8); hline(6, 8, 14)
-  vline(6, 9, 13)
+  hline2(6, 8, 8); hline2(6, 8, 14)
+  vline2(6, 9, 13)
 
   // ── 字母 W（右，x:10..14, y:8..14）──
-  vline(10, 8, 12); vline(14, 8, 12)
-  sp(11, 13); sp(11, 14)
-  sp(13, 13); sp(13, 14)
-  sp(12, 12)
+  vline2(10, 8, 12); vline2(14, 8, 12)
+  sp2(11, 13); sp2(11, 14)
+  sp2(13, 13); sp2(13, 14)
+  sp2(12, 12)
 
   // ── PNG 组装（IHDR + IDAT + IEND）──
   function crc32(buf: Buffer): number {
@@ -368,7 +373,7 @@ function buildTrayIconPNG(active: boolean): Buffer {
 
 function buildTrayIcon(active: boolean): Electron.NativeImage {
   const png = buildTrayIconPNG(active)
-  return nativeImage.createFromBuffer(png, { scaleFactor: 1 })
+  return nativeImage.createFromBuffer(png, { scaleFactor: 2 })
 }
 
 function createTray(): void {

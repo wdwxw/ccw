@@ -103,13 +103,13 @@ export function SettingsPage(): React.ReactElement {
             </div>
             <button
               onClick={() => setShowTrayIcon(!showTrayIcon)}
-              className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${
+              className={`relative h-5 w-9 flex-shrink-0 overflow-hidden rounded-full transition-colors ${
                 showTrayIcon ? 'bg-accent' : 'bg-bg-elevated'
               }`}
             >
               <span
-                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                  showTrayIcon ? 'translate-x-4' : 'translate-x-0.5'
+                className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                  showTrayIcon ? 'translate-x-4' : 'translate-x-0'
                 }`}
               />
             </button>
