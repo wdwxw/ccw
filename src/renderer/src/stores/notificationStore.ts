@@ -9,6 +9,10 @@ interface NotificationState {
   getCount: (worktreeId: string) => number
 }
 
+// 去重窗口：同一 worktree 1000ms 内只计一次
+// Stop 和 Notification 两个 hook 可能在同一次任务结束时连续触发
+const dedupeTimers: Record<string, ReturnType<typeof setTimeout>> = {}
+
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: {},
 
@@ -17,18 +21,29 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     const selected = useRepoStore.getState().selectedWorktreeId
     if (selected === worktreeId) return
 
+    // Dedupe: ignore if a notification for this worktree already arrived within 1s
+    if (dedupeTimers[worktreeId]) return
+    dedupeTimers[worktreeId] = setTimeout(() => {
+      delete dedupeTimers[worktreeId]
+    }, 1000)
+
     set((s) => ({
       notifications: {
         ...s.notifications,
         [worktreeId]: (s.notifications[worktreeId] ?? 0) + 1,
       },
     }))
+    // Notify tray to start flashing
+    window.api.tray.setFlashing(true)
   },
 
   clearNotification: (worktreeId) => {
     set((s) => {
       const next = { ...s.notifications }
       delete next[worktreeId]
+      const hasAny = Object.keys(next).length > 0
+      // Stop tray flash when all notifications cleared
+      window.api.tray.setFlashing(hasAny)
       return { notifications: next }
     })
   },

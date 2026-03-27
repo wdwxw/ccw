@@ -11,6 +11,7 @@ interface SettingsState {
   showSettings: boolean
   theme: Theme
   fontScale: FontScale
+  showTrayIcon: boolean
 
   loadSettings: () => Promise<void>
   setLastExternalApp: (appId: string) => Promise<void>
@@ -18,6 +19,7 @@ interface SettingsState {
   setQuickButtons: (buttons: QuickButton[]) => Promise<void>
   setTheme: (theme: Theme) => Promise<void>
   setFontScale: (scale: FontScale) => Promise<void>
+  setShowTrayIcon: (visible: boolean) => Promise<void>
   toggleSettings: () => void
 }
 
@@ -28,6 +30,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   showSettings: false,
   theme: 'dazi',
   fontScale: 1,
+  showTrayIcon: true,
 
   loadSettings: async () => {
     const lastApp = (await window.api.store.get('lastExternalApp')) as string | undefined
@@ -35,6 +38,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const buttons = (await window.api.store.get('quickButtons')) as QuickButton[] | undefined
     const theme = (await window.api.store.get('theme')) as Theme | undefined
     const fontScale = (await window.api.store.get('fontScale')) as FontScale | undefined
+    const showTrayIcon = (await window.api.store.get('showTrayIcon')) as boolean | undefined
     if (lastApp) set({ lastExternalApp: lastApp })
     if (apps && apps.length > 0) {
       set({ externalApps: apps })
@@ -47,6 +51,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
     if (fontScale) {
       set({ fontScale })
+    }
+    if (showTrayIcon !== undefined) {
+      set({ showTrayIcon })
     }
   },
 
@@ -73,6 +80,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setFontScale: async (fontScale) => {
     set({ fontScale })
     await window.api.store.set('fontScale', fontScale)
+  },
+
+  setShowTrayIcon: async (visible) => {
+    set({ showTrayIcon: visible })
+    await window.api.store.set('showTrayIcon', visible)
+    await window.api.tray.setVisible(visible)
   },
 
   toggleSettings: () => {

@@ -23,6 +23,8 @@ export function SettingsPage(): React.ReactElement {
   const setTheme = useSettingsStore((s) => s.setTheme)
   const fontScale = useSettingsStore((s) => s.fontScale)
   const setFontScale = useSettingsStore((s) => s.setFontScale)
+  const showTrayIcon = useSettingsStore((s) => s.showTrayIcon)
+  const setShowTrayIcon = useSettingsStore((s) => s.setShowTrayIcon)
   const addToast = useToastStore((s) => s.addToast)
 
   const [apps, setApps] = useState<ExternalApp[]>(externalApps)
@@ -90,6 +92,29 @@ export function SettingsPage(): React.ReactElement {
           </button>
           <h1 className="text-lg font-medium text-text-primary">设置</h1>
         </div>
+
+        {/* Menu Bar 图标 */}
+        <section className="mb-8">
+          <h2 className="mb-3 text-sm font-medium text-text-primary">Menu Bar 图标</h2>
+          <div className="flex items-center justify-between rounded-lg border border-border-muted bg-bg-secondary px-4 py-3">
+            <div>
+              <p className="text-xs font-medium text-text-primary">显示 Menu Bar 图标</p>
+              <p className="mt-0.5 text-xs text-text-muted">在 macOS 顶部菜单栏显示 CCW 图标，收到通知时闪烁提醒</p>
+            </div>
+            <button
+              onClick={() => setShowTrayIcon(!showTrayIcon)}
+              className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${
+                showTrayIcon ? 'bg-accent' : 'bg-bg-elevated'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                  showTrayIcon ? 'translate-x-4' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+          </div>
+        </section>
 
         {/* Theme */}
         <section className="mb-8">

@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, Tray, nativeImage, Menu } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import Store from 'electron-store'
@@ -255,6 +255,14 @@ function createWindow(): BrowserWindow {
     mainWindow.show()
   })
 
+  // Cmd+W 隐藏窗口到 Tray，不关闭应用
+  mainWindow.webContents.on('before-input-event', (_e, input) => {
+    if (input.type === 'keyDown' && input.key === 'w' && input.meta && !input.shift && !input.alt && !input.control) {
+      _e.preventDefault()
+      mainWindow.hide()
+    }
+  })
+
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
@@ -277,12 +285,154 @@ function getMainWindow(): BrowserWindow | null {
   return wins.length > 0 ? wins[0] : null
 }
 
+// ── Tray ──────────────────────────────────────────────────────────────────────
+
+let tray: Tray | null = null
+let flashInterval: NodeJS.Timeout | null = null
+let flashPhase = false
+
+// 生成 Tray 图标 PNG（纯 Node.js，不依赖外部文件）
+// active=false: 白色普通图标；active=true: 绿色高亮图标
+// 方案9: "CCW" 字母 + 圆角矩形边框，22x22 RGBA
+function buildTrayIconPNG(active: boolean): Buffer {
+  const zlib = require('zlib') as typeof import('zlib')
+  const SIZE = 22
+  const rgba = Buffer.alloc(SIZE * SIZE * 4, 0) // 全透明
+
+  const fg: [number, number, number] = active ? [63, 185, 80] : [230, 237, 243]
+
+  function setPixel(x: number, y: number, r: number, g: number, b: number, a = 255): void {
+    if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) return
+    const i = (y * SIZE + x) * 4
+    rgba[i] = r; rgba[i + 1] = g; rgba[i + 2] = b; rgba[i + 3] = a
+  }
+  function sp(x: number, y: number): void { setPixel(x, y, ...fg) }
+  function hline(x0: number, x1: number, y: number): void { for (let x = x0; x <= x1; x++) sp(x, y) }
+  function vline(x: number, y0: number, y1: number): void { for (let y = y0; y <= y1; y++) sp(x, y) }
+
+  // ── 圆角矩形边框（全画面 0..21）──
+  const L = 0, R = 21, T = 0, B = 21
+  hline(L + 2, R - 2, T);   hline(L + 2, R - 2, B)
+  vline(L, T + 2, B - 2);   vline(R, T + 2, B - 2)
+  sp(L+1, T+1); sp(R-1, T+1); sp(L+1, B-1); sp(R-1, B-1)
+
+  // ── 字母 C（左，x:2..4, y:8..14）──
+  hline(2, 4, 8); hline(2, 4, 14)
+  vline(2, 9, 13)
+
+  // ── 字母 C（中，x:6..8, y:8..14）──
+  hline(6, 8, 8); hline(6, 8, 14)
+  vline(6, 9, 13)
+
+  // ── 字母 W（右，x:10..14, y:8..14）──
+  vline(10, 8, 12); vline(14, 8, 12)
+  sp(11, 13); sp(11, 14)
+  sp(13, 13); sp(13, 14)
+  sp(12, 12)
+
+  // ── PNG 组装（IHDR + IDAT + IEND）──
+  function crc32(buf: Buffer): number {
+    const table: number[] = []
+    for (let n = 0; n < 256; n++) {
+      let c = n
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+      table[n] = c
+    }
+    let crc = 0xffffffff
+    for (let i = 0; i < buf.length; i++) crc = table[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8)
+    return (crc ^ 0xffffffff) >>> 0
+  }
+  function chunk(type: string, data: Buffer): Buffer {
+    const typeB = Buffer.from(type, 'ascii')
+    const len = Buffer.alloc(4); len.writeUInt32BE(data.length)
+    const crcInput = Buffer.concat([typeB, data])
+    const crcB = Buffer.alloc(4); crcB.writeUInt32BE(crc32(crcInput))
+    return Buffer.concat([len, typeB, data, crcB])
+  }
+
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(SIZE, 0); ihdr.writeUInt32BE(SIZE, 4)
+  ihdr[8] = 8; ihdr[9] = 6 // 8-bit RGBA
+
+  // IDAT: 每行前加 filter byte 0
+  const raw = Buffer.alloc(SIZE * (1 + SIZE * 4))
+  for (let y = 0; y < SIZE; y++) {
+    raw[y * (1 + SIZE * 4)] = 0
+    rgba.copy(raw, y * (1 + SIZE * 4) + 1, y * SIZE * 4, (y + 1) * SIZE * 4)
+  }
+  const compressed = zlib.deflateSync(raw)
+
+  const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
+  return Buffer.concat([sig, chunk('IHDR', ihdr), chunk('IDAT', compressed), chunk('IEND', Buffer.alloc(0))])
+}
+
+function buildTrayIcon(active: boolean): Electron.NativeImage {
+  const png = buildTrayIconPNG(active)
+  return nativeImage.createFromBuffer(png, { scaleFactor: 1 })
+}
+
+function createTray(): void {
+  tray = new Tray(buildTrayIcon(false))
+  tray.setToolTip('CCW — Git Worktree Manager')
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '打开 CCW',
+      click: () => {
+        const win = getMainWindow()
+        if (win) { win.show(); win.focus() }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '退出 CCW',
+      click: () => {
+        ;(app as any).isQuitting = true
+        app.quit()
+      }
+    }
+  ])
+  tray.setContextMenu(contextMenu)
+
+  // macOS: setContextMenu 后左键单击也会弹菜单，用 double-click 来打开窗口
+  tray.on('double-click', () => {
+    const win = getMainWindow()
+    if (win) {
+      if (win.isMinimized()) win.restore()
+      win.show()
+      win.focus()
+    }
+  })
+}
+
+function startTrayFlash(): void {
+  if (flashInterval) return
+  flashInterval = setInterval(() => {
+    flashPhase = !flashPhase
+    tray?.setImage(buildTrayIcon(flashPhase))
+  }, 600)
+}
+
+function stopTrayFlash(): void {
+  if (flashInterval) {
+    clearInterval(flashInterval)
+    flashInterval = null
+  }
+  flashPhase = false
+  tray?.setImage(buildTrayIcon(false))
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.ccw.app')
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
+
+  // IPC handlers 必须在窗口创建前注册，防止 activate 提前触发时渲染进程找不到 handler
+  registerIpcHandlers()
 
   // 自动配置 Claude CLI 换行所需的 IDE keybinding（用户无需手动运行 /terminal-setup）
   ensureClaudeKeybinding()
@@ -308,11 +458,35 @@ app.whenReady().then(async () => {
   })
 
   mainWindowRef = createWindow()
-  registerIpcHandlers()
+  // 关闭主窗口时隐藏到 Tray 后台，只有 isQuitting=true 时才真正退出
+  mainWindowRef.on('close', (e) => {
+    if (!(app as any).isQuitting) {
+      e.preventDefault()
+      mainWindowRef!.hide()
+    }
+  })
+
+  // 根据用户设置决定是否显示 Tray 图标（默认显示）
+  const showTrayIcon = store.get('showTrayIcon') as boolean | undefined
+  if (showTrayIcon !== false) {
+    createTray()
+  }
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
+    // hidden 窗口仍在 getAllWindows() 中，直接 show 即可；
+    // 只有窗口被真正销毁（isQuitting 后重启场景）才重建
+    const win = getMainWindow()
+    if (win) {
+      win.show()
+      win.focus()
+    } else {
       mainWindowRef = createWindow()
+      mainWindowRef.on('close', (e) => {
+        if (!(app as any).isQuitting) {
+          e.preventDefault()
+          mainWindowRef!.hide()
+        }
+      })
     }
   })
 })
@@ -328,10 +502,30 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  ;(app as any).isQuitting = true
   closeHookServer()
+  stopTrayFlash()
+  tray?.destroy()
+  tray = null
 })
 
 function registerIpcHandlers(): void {
+  // ── Tray ──
+  ipcMain.handle('tray:setFlashing', (_e, flashing: boolean) => {
+    if (flashing) startTrayFlash()
+    else stopTrayFlash()
+  })
+
+  ipcMain.handle('tray:setVisible', (_e, visible: boolean) => {
+    if (visible) {
+      if (!tray) createTray()
+    } else {
+      stopTrayFlash()
+      tray?.destroy()
+      tray = null
+    }
+  })
+
   // ── Store ──
   ipcMain.handle('store:get', (_e, key: string) => store.get(key))
   ipcMain.handle('store:set', (_e, key: string, value: unknown) => store.set(key, value))

@@ -61,6 +61,10 @@ const api = {
       return () => ipcRenderer.removeListener('ccw:notification', handler)
     }
   },
+  tray: {
+    setFlashing: (flashing: boolean) => ipcRenderer.invoke('tray:setFlashing', flashing),
+    setVisible: (visible: boolean) => ipcRenderer.invoke('tray:setVisible', visible),
+  },
 }
 
 contextBridge.exposeInMainWorld('api', api)
