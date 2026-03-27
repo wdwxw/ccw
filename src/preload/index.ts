@@ -24,7 +24,7 @@ const api = {
       ipcRenderer.invoke('git:merge', repoPath, source, target, strategy)
   },
   pty: {
-    create: (id: string, cwd: string) => ipcRenderer.invoke('pty:create', id, cwd),
+    create: (id: string, cwd: string, worktreeId: string) => ipcRenderer.invoke('pty:create', id, cwd, worktreeId),
     write: (id: string, data: string) => ipcRenderer.invoke('pty:write', id, data),
     resize: (id: string, cols: number, rows: number) =>
       ipcRenderer.invoke('pty:resize', id, cols, rows),
@@ -53,7 +53,14 @@ const api = {
   },
   path: {
     dirname: (filePath: string) => ipcRenderer.invoke('path:dirname', filePath)
-  }
+  },
+  notification: {
+    onNotification: (cb: (payload: { worktreeId: string; type: string }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, payload: { worktreeId: string; type: string }) => cb(payload)
+      ipcRenderer.on('ccw:notification', handler)
+      return () => ipcRenderer.removeListener('ccw:notification', handler)
+    }
+  },
 }
 
 contextBridge.exposeInMainWorld('api', api)
