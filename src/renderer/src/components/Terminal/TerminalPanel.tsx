@@ -355,10 +355,14 @@ export function TerminalPanel(): React.ReactElement {
           setSessionVersion((v) => v + 1)
 
           await new Promise((resolve) => requestAnimationFrame(resolve))
+          const _wasAtBottom = terminal.xterm.buffer.active.viewportY === terminal.xterm.buffer.active.baseY
           try {
-            const _wasAtBottom = terminal.xterm.buffer.active.viewportY === terminal.xterm.buffer.active.baseY
             terminal.fitAddon.fit()
-            if (_wasAtBottom) { terminal.xterm.scrollToBottom() }
+          } catch {
+            /* ignore */
+          }
+          if (_wasAtBottom) { terminal.xterm.scrollToBottom() }
+          try {
             await window.api.pty.resize(terminal.ptyId, terminal.xterm.cols, terminal.xterm.rows)
           } catch {
             /* ignore */
