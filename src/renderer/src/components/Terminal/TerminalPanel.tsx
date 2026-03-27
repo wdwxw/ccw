@@ -219,8 +219,7 @@ export function TerminalPanel(): React.ReactElement {
 
       await new Promise((resolve) => requestAnimationFrame(resolve))
       const _xterm = terminal.xterm
-      const _wasAtBottom =
-        _xterm.buffer.active.viewportY + _xterm.rows >= _xterm.buffer.active.length
+      const _wasAtBottom = _xterm.buffer.active.viewportY === _xterm.buffer.active.baseY
       try {
         terminal.fitAddon.fit()
       } catch {
@@ -357,9 +356,7 @@ export function TerminalPanel(): React.ReactElement {
 
           await new Promise((resolve) => requestAnimationFrame(resolve))
           try {
-            const _wasAtBottom =
-              terminal.xterm.buffer.active.viewportY + terminal.xterm.rows >=
-              terminal.xterm.buffer.active.length
+            const _wasAtBottom = terminal.xterm.buffer.active.viewportY === terminal.xterm.buffer.active.baseY
             terminal.fitAddon.fit()
             if (_wasAtBottom) { terminal.xterm.scrollToBottom() }
             await window.api.pty.resize(terminal.ptyId, terminal.xterm.cols, terminal.xterm.rows)
@@ -427,8 +424,7 @@ export function TerminalPanel(): React.ReactElement {
       const term = xtermRef.current
       const fitAddon = fitAddonRef.current
       if (!fitAddon || !term) return
-      const wasAtBottom =
-        term.buffer.active.viewportY + term.rows >= term.buffer.active.length
+      const wasAtBottom = term.buffer.active.viewportY === term.buffer.active.baseY
       try {
         fitAddon.fit()
       } catch {
