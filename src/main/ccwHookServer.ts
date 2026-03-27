@@ -161,7 +161,25 @@ function writeSettings(settings: Record<string, unknown>): void {
   fs.writeFileSync(p, JSON.stringify(settings, null, 2) + '\n', 'utf-8')
 }
 
+function backupSettings(): void {
+  try {
+    const src = settingsPath()
+    const content = fs.readFileSync(src, 'utf-8')
+    const dir = path.join(os.homedir(), '.ccw', 'backups')
+    fs.mkdirSync(dir, { recursive: true })
+    const d = new Date()
+    const ts = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}${String(d.getSeconds()).padStart(2,'0')}`
+    fs.writeFileSync(path.join(dir, `${ts}.json`), content, 'utf-8')
+    // 只保留最近 20 份
+    const files = fs.readdirSync(dir).filter(f => f.endsWith('.json')).sort()
+    for (const old of files.slice(0, Math.max(0, files.length - 20))) {
+      fs.unlinkSync(path.join(dir, old))
+    }
+  } catch { /* 备份失败不影响主流程 */ }
+}
+
 export function injectHooksIntoSettings(): void {
+  backupSettings()
   const settings = readSettings()
   const hooks = (settings.hooks ?? {}) as Record<string, unknown[]>
 

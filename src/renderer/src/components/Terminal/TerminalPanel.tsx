@@ -439,7 +439,7 @@ export function TerminalPanel(): React.ReactElement {
 
   const handleSendCommand = useCallback((command: string) => {
     if (currentPtyId.current) {
-      window.api.pty.write(currentPtyId.current, command + '\n')
+      window.api.pty.write(currentPtyId.current, command + '\r')
     }
   }, [])
 
