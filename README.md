@@ -26,6 +26,16 @@
 - **深色主题** — 与 IDE 风格一致的深色界面
 - **状态栏** — 底部显示当前分支、路径、仓库/Worktree 统计
 
+### Claude Code 通知集成
+
+CCW 在运行时会自动向 Claude Code 的全局配置文件注入 hooks，实现任务完成时侧边栏工作树呼吸灯提醒：
+
+- **自动注入**：启动时向 `~/.claude/settings.json` 添加 `Stop` 和 `Notification` hooks
+- **自动清理**：正常退出时会自动移除注入的配置
+- **零 PATH 侵入**：不使用 wrapper 拦截，不修改 shell 配置，不依赖 PATH 顺序
+
+> ⚠️ **卸载注意事项**：若 CCW 异常退出（崩溃/强制退出），hooks 可能残留。卸载前请手动检查并清理，详见下方「卸载与清理」章节。
+
 ## 技术栈
 
 | 模块 | 技术 |
@@ -135,6 +145,38 @@ ccw/
 
 - macOS 12+（Monterey 及以上）
 - Git 2.17+
+
+## 卸载与清理
+
+CCW 在运行时会对系统进行以下修改，卸载前请手动清理：
+
+| 路径/文件 | 修改内容 | 清理方式 |
+|-----------|----------|----------|
+| `~/.claude/settings.json` | 注入 `Stop` / `Notification` hooks | 删除包含 `__ccw__` 的 hooks 条目，或整个 `hooks` 字段（如不再需要） |
+| `~/.ccw/` | 存放 registry.json、ccw-hook 脚本 | 删除整个目录：`rm -rf ~/.ccw` |
+
+**手动清理命令：**
+
+```bash
+# 1. 清理 Claude Code settings.json 中的 CCW hooks
+python3 -c "
+import json, os
+p = os.path.expanduser('~/.claude/settings.json')
+try:
+    with open(p) as f: d = json.load(f)
+    if 'hooks' in d:
+        for k in list(d['hooks'].keys()):
+            d['hooks'][k] = [e for e in d['hooks'][k] if '__ccw__' not in json.dumps(e)]
+            if not d['hooks'][k]: del d['hooks'][k]
+        if not d['hooks']: del d['hooks']
+    with open(p, 'w') as f: json.dump(d, f, indent=2)
+    print('已清理 settings.json')
+except Exception as e: print('跳过:', e)
+"
+
+# 2. 删除 CCW 配置目录
+rm -rf ~/.ccw
+```
 
 ## License
 

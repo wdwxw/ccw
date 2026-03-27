@@ -26,19 +26,6 @@ function resolveWorktreeByPath(gitPath: string): string | undefined {
   return undefined
 }
 
-// Inject CLAUDE_PATH into wecode config so it always uses CCW's wrapper
-function ensureWecodeClaudePath(): void {
-  const configPath = join(os.homedir(), '.wecode-cli', 'config.json')
-  if (!fs.existsSync(configPath)) return
-  const wrapperPath = join(os.homedir(), '.ccw', 'bin', 'claude')
-  try {
-    const raw = fs.readFileSync(configPath, 'utf-8')
-    const config = JSON.parse(raw)
-    if (config.CLAUDE_PATH === wrapperPath) return  // already correct
-    config.CLAUDE_PATH = wrapperPath
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 4), 'utf-8')
-  } catch { /* ignore if config unreadable */ }
-}
 
 const ptyModule = require('node-pty')
 
@@ -300,9 +287,6 @@ app.whenReady().then(async () => {
   // 自动配置 Claude CLI 换行所需的 IDE keybinding（用户无需手动运行 /terminal-setup）
   ensureClaudeKeybinding()
 
-  // Inject CCW claude wrapper into wecode config so external sessions get notifications
-  ensureWecodeClaudePath()
-
   // Detect installed apps with icons on startup
   const detectedApps = await detectInstalledApps()
   if (detectedApps.length > 0) {
@@ -539,8 +523,6 @@ function registerIpcHandlers(): void {
         LANG: process.env.LANG || 'en_US.UTF-8',
         CCW_WORKTREE_ID: worktreeId || '',
         CCW_HOOK_PORT: String(hookServerPort),
-        ZDOTDIR: join(os.homedir(), '.ccw', 'zdotdir'),
-        CCW_ORIG_ZDOTDIR: process.env.ZDOTDIR || os.homedir(),
       }
     })
 

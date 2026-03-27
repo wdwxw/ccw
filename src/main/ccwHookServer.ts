@@ -38,20 +38,26 @@ export function startHookServer(
     server.listen(0, '127.0.0.1', () => {
       const port = (server!.address() as AddressInfo).port
       writeRegistry(port)
-      writeScripts()
+      writeCcwHookScript()
+      injectHooksIntoSettings()
       resolve(port)
     })
   })
 }
 
 export function closeHookServer(): void {
+  removeHooksFromSettings()
   server?.close()
   server = null
 }
 
+// ---------------------------------------------------------------------------
+// Registry
+// ---------------------------------------------------------------------------
+
 function writeRegistry(port: number): void {
   const registryPath = path.join(os.homedir(), '.ccw', 'registry.json')
-  const content = JSON.stringify({ port }, null, 2)
+  const content = JSON.stringify({ port, pid: process.pid }, null, 2)
   try {
     if (fs.readFileSync(registryPath, 'utf-8') === content) return
   } catch { /* file doesn't exist yet */ }
@@ -59,99 +65,31 @@ function writeRegistry(port: number): void {
   fs.writeFileSync(registryPath, content, 'utf-8')
 }
 
-function writeFile(filePath: string, content: string, executable: boolean): void {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true })
-  try {
-    if (fs.readFileSync(filePath, 'utf-8') === content) return
-  } catch { /* file doesn't exist yet */ }
-  fs.writeFileSync(filePath, content, 'utf-8')
-  if (executable) fs.chmodSync(filePath, 0o755)
-}
+// ---------------------------------------------------------------------------
+// ccw-hook script (absolute path used in settings.json — no PATH dependency)
+// ---------------------------------------------------------------------------
 
-function writeScripts(): void {
-  const home = os.homedir()
-  const ccwDir = path.join(home, '.ccw')
-
-  // shell-integration.zsh
-  writeFile(
-    path.join(ccwDir, 'shell-integration.zsh'),
-    `# CCW shell integration — adds ~/.ccw/bin to PATH (idempotent)\n[[ ":$PATH:" != *":$HOME/.ccw/bin:"* ]] && export PATH="$HOME/.ccw/bin:$PATH"\n`,
-    false
-  )
-
-  // zdotdir/.zshrc
-  writeFile(
-    path.join(ccwDir, 'zdotdir', '.zshrc'),
-    `# Restore user original ZDOTDIR (or $HOME if unset)\n_ccw_orig="\${CCW_ORIG_ZDOTDIR:-$HOME}"\nZDOTDIR="$_ccw_orig"\nunset _ccw_orig\n\n# Source user's real .zshrc\n[[ -f "$ZDOTDIR/.zshrc" ]] && source "$ZDOTDIR/.zshrc"\n\n# Inject CCW shell integration\n[[ -f "$HOME/.ccw/shell-integration.zsh" ]] && source "$HOME/.ccw/shell-integration.zsh"\n`,
-    false
-  )
-
-  // claude wrapper
-  writeFile(
-    path.join(ccwDir, 'bin', 'claude'),
-    `#!/usr/bin/env bash
-
-# CCW claude wrapper — injects Stop/Notification hooks via temp --settings file
-
-find_real_claude() {
-  local self_dir
-  self_dir="$(cd "$(dirname "$0")" && pwd)"
-  local IFS=:
-  for d in $PATH; do
-    [[ "$d" == "$self_dir" ]] && continue
-    [[ -x "$d/claude" ]] && printf '%s' "$d/claude" && return 0
-  done
-  return 1
-}
-
-REAL_CLAUDE=$(find_real_claude) || { echo "Error: claude not found" >&2; exit 127; }
-
-# Determine hook port: prefer CCW_HOOK_PORT env var, fall back to registry file
-_CCW_PORT="\${CCW_HOOK_PORT:-}"
-if [[ -z "$_CCW_PORT" ]]; then
-  _REG="$HOME/.ccw/registry.json"
-  [[ -f "$_REG" ]] && _CCW_PORT=$(grep -o '"port":[[:space:]]*[0-9]*' "$_REG" | grep -o '[0-9]*')
-fi
-
-# No CCW context at all → pass through
-[[ -z "$_CCW_PORT" ]] && exec "$REAL_CLAUDE" "$@"
-
-# Subcommands that don't support --settings
-case "\${1:-}" in
-  mcp|config|api-key|rc|remote-control) exec "$REAL_CLAUDE" "$@" ;;
-esac
-
-# Write temp JSON file for --settings (file path, not inline JSON)
-HOOKS_TMP="$(mktemp /tmp/ccw-hooks-XXXXXX.json)"
-trap 'rm -f "$HOOKS_TMP"' EXIT
-
-cat > "$HOOKS_TMP" <<'EOF'
-{
-  "hooks": {
-    "Stop": [{"matcher":"","hooks":[{"type":"command","command":"ccw-hook stop","timeout":10}]}],
-    "Notification": [{"matcher":"","hooks":[{"type":"command","command":"ccw-hook notification","timeout":10}]}]
-  }
-}
-EOF
-
-exec "$REAL_CLAUDE" --settings "$HOOKS_TMP" "$@"
-`,
-    true
-  )
-
-  // ccw-hook handler
-  writeFile(
-    path.join(ccwDir, 'bin', 'ccw-hook'),
-    `#!/usr/bin/env bash
+function writeCcwHookScript(): void {
+  const ccwHookPath = path.join(os.homedir(), '.ccw', 'bin', 'ccw-hook')
+  const content = `#!/usr/bin/env bash
 TYPE="\${1:-stop}"
 
-# --- Resolve PORT ---
+# --- Resolve PORT + CCW PID ---
 PORT="\${CCW_HOOK_PORT:-}"
+_CCW_PID=""
 if [[ -z "$PORT" ]]; then
   _REG="$HOME/.ccw/registry.json"
-  [[ -f "$_REG" ]] && PORT=$(grep -o '"port":[[:space:]]*[0-9]*' "$_REG" | grep -o '[0-9]*')
+  if [[ -f "$_REG" ]]; then
+    PORT=$(grep -o '"port":[[:space:]]*[0-9]*' "$_REG" | grep -o '[0-9]*')
+    _CCW_PID=$(grep -o '"pid":[[:space:]]*[0-9]*' "$_REG" | grep -o '[0-9]*')
+  fi
 fi
 [[ -z "$PORT" ]] && exit 0
+
+# CCW process is dead → skip silently (avoids 3-second curl timeout)
+if [[ -n "$_CCW_PID" ]] && ! kill -0 "$_CCW_PID" 2>/dev/null; then
+  exit 0
+fi
 
 # --- Resolve worktree identifier ---
 WT_ID="\${CCW_WORKTREE_ID:-}"
@@ -163,12 +101,11 @@ if [[ -n "$WT_ID" ]]; then
     PAYLOAD="{\\"type\\":\\"$TYPE\\",\\"worktreeId\\":\\"$WT_ID\\"}"
   fi
 else
-  # Fallback: detect git root path (used for wecode / external terminals)
+  # Fallback: detect git root path (wecode / Zed / any external terminal)
   GIT_PATH=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
   if command -v jq >/dev/null 2>&1; then
     PAYLOAD="$(jq -n --arg type "$TYPE" --arg p "$GIT_PATH" '{type:$type,gitPath:$p}')"
   else
-    # gitPath may contain path chars — use python3 for safe JSON encoding
     PAYLOAD=$(python3 -c "import json,sys; print(json.dumps({'type':sys.argv[1],'gitPath':sys.argv[2]}))" "$TYPE" "$GIT_PATH" 2>/dev/null) || \
     PAYLOAD="{\\"type\\":\\"$TYPE\\",\\"gitPath\\":\\"$(echo "$GIT_PATH" | sed 's/"/\\\\"/g')\\"}"
   fi
@@ -179,7 +116,84 @@ curl -s -X POST "http://127.0.0.1:$PORT/hook" \\
   -d "$PAYLOAD" \\
   --max-time 3 \\
   >/dev/null 2>&1 || true
-`,
-    true
-  )
+`
+  fs.mkdirSync(path.dirname(ccwHookPath), { recursive: true })
+  try {
+    if (fs.readFileSync(ccwHookPath, 'utf-8') === content) return
+  } catch { /* not exists */ }
+  fs.writeFileSync(ccwHookPath, content, 'utf-8')
+  fs.chmodSync(ccwHookPath, 0o755)
+}
+
+// ---------------------------------------------------------------------------
+// ~/.claude/settings.json hook injection
+// ---------------------------------------------------------------------------
+
+const CCW_HOOK_MARKER = '__ccw__'  // substring present in all CCW hook commands
+
+function settingsPath(): string {
+  return path.join(os.homedir(), '.claude', 'settings.json')
+}
+
+function ccwHookCommand(type: string): string {
+  // Absolute path — works regardless of PATH in any shell/tool context
+  return `${os.homedir()}/.ccw/bin/ccw-hook ${type}`
+}
+
+function ccwHookEntry(type: string): object {
+  return {
+    matcher: '',
+    hooks: [{ type: 'command', command: ccwHookCommand(type), timeout: 10 }],
+  }
+}
+
+function readSettings(): Record<string, unknown> {
+  try {
+    return JSON.parse(fs.readFileSync(settingsPath(), 'utf-8'))
+  } catch {
+    return {}
+  }
+}
+
+function writeSettings(settings: Record<string, unknown>): void {
+  const p = settingsPath()
+  fs.mkdirSync(path.dirname(p), { recursive: true })
+  fs.writeFileSync(p, JSON.stringify(settings, null, 2) + '\n', 'utf-8')
+}
+
+export function injectHooksIntoSettings(): void {
+  const settings = readSettings()
+  const hooks = (settings.hooks ?? {}) as Record<string, unknown[]>
+
+  for (const event of ['Stop', 'Notification'] as const) {
+    const existing = (hooks[event] ?? []) as object[]
+    // Skip if already injected (idempotent)
+    const alreadyPresent = existing.some((entry) =>
+      JSON.stringify(entry).includes(CCW_HOOK_MARKER)
+    )
+    if (!alreadyPresent) {
+      hooks[event] = [...existing, ccwHookEntry(event)]
+    }
+  }
+
+  settings.hooks = hooks
+  writeSettings(settings)
+}
+
+export function removeHooksFromSettings(): void {
+  try {
+    const settings = readSettings()
+    const hooks = settings.hooks as Record<string, unknown[]> | undefined
+    if (!hooks) return
+
+    for (const event of Object.keys(hooks)) {
+      hooks[event] = (hooks[event] as object[]).filter(
+        (entry) => !JSON.stringify(entry).includes(CCW_HOOK_MARKER)
+      )
+      if (hooks[event].length === 0) delete hooks[event]
+    }
+
+    if (Object.keys(hooks).length === 0) delete settings.hooks
+    writeSettings(settings)
+  } catch { /* ignore if file unreadable on quit */ }
 }
