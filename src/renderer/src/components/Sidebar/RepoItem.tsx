@@ -29,8 +29,7 @@ export function RepoItem({ repo }: RepoItemProps): React.ReactElement {
   const [expanded,    setExpanded]    = useState(true)
   const [showMenu,    setShowMenu]    = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
-  const selectedRepoId = useRepoStore((s) => s.selectedRepoId)
-  const selectRepo     = useRepoStore((s) => s.selectRepo)
+  const [isHovered,   setIsHovered]   = useState(false)
   const removeRepo     = useRepoStore((s) => s.removeRepo)
   const createWorktree = useRepoStore((s) => s.createWorktree)
   const collapseAllTrigger = useRepoStore((s) => s.collapseAllTrigger)
@@ -39,7 +38,6 @@ export function RepoItem({ repo }: RepoItemProps): React.ReactElement {
     if (collapseAllTrigger > 0) setExpanded(false)
   }, [collapseAllTrigger])
 
-  const isSelected     = selectedRepoId === repo.id
   const activeWorktrees = repo.worktrees.filter((w) => w.status === 'active')
 
   return (
@@ -50,11 +48,11 @@ export function RepoItem({ repo }: RepoItemProps): React.ReactElement {
         style={{
           padding: '8px 10px',
           marginBottom: 2,
-          background: isSelected ? 'var(--ac, rgba(255,220,160,0.08))' : 'transparent',
+          background: isHovered ? 'var(--ac, rgba(255,220,160,0.08))' : 'transparent',
         }}
-        onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'var(--hv)' }}
-        onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
-        onClick={() => { selectRepo(repo.id); setExpanded(!expanded) }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onClick={() => setExpanded(!expanded)}
       >
         {/* Badge indicator */}
         <div style={{ width: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -65,7 +63,7 @@ export function RepoItem({ repo }: RepoItemProps): React.ReactElement {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             className="truncate text-[12px] leading-[1.3]"
-            style={{ color: isSelected ? 'var(--t1)' : 'var(--t2)', fontWeight: 500 }}
+            style={{ color: isHovered ? 'var(--t1)' : 'var(--t2)', fontWeight: 500 }}
           >
             {repo.name}
           </div>
