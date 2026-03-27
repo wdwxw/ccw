@@ -153,3 +153,15 @@
   [data-theme="brown"] ::-webkit-scrollbar-thumb { background: rgba(255,220,160,0.10); }
   [data-theme="brown"] ::-webkit-scrollbar-thumb:hover { background: rgba(255,220,160,0.20); }
 }
+
+/* CCW: Claude Code task-complete notification dot animation */
+@keyframes ccw-breathe {
+  0%   { box-shadow: 0 0 0 0px rgba(63, 185, 80, 0.0); }
+  40%  { box-shadow: 0 0 0 4px rgba(63, 185, 80, 0.35); }
+  70%  { box-shadow: 0 0 0 6px rgba(63, 185, 80, 0.0); }
+  100% { box-shadow: 0 0 0 0px rgba(63, 185, 80, 0.0); }
+}
+
+.dot-notif-active {
+  animation: ccw-breathe 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
