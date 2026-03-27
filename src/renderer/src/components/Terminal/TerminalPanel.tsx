@@ -218,11 +218,15 @@ export function TerminalPanel(): React.ReactElement {
       terminal.element.style.display = 'block'
 
       await new Promise((resolve) => requestAnimationFrame(resolve))
+      const _xterm = terminal.xterm
+      const _wasAtBottom =
+        _xterm.buffer.active.viewportY + _xterm.rows >= _xterm.buffer.active.length
       try {
         terminal.fitAddon.fit()
       } catch {
         /* ignore */
       }
+      if (_wasAtBottom) { _xterm.scrollToBottom() }
 
       xtermRef.current = terminal.xterm
       fitAddonRef.current = terminal.fitAddon
@@ -353,7 +357,11 @@ export function TerminalPanel(): React.ReactElement {
 
           await new Promise((resolve) => requestAnimationFrame(resolve))
           try {
+            const _wasAtBottom =
+              terminal.xterm.buffer.active.viewportY + terminal.xterm.rows >=
+              terminal.xterm.buffer.active.length
             terminal.fitAddon.fit()
+            if (_wasAtBottom) { terminal.xterm.scrollToBottom() }
             await window.api.pty.resize(terminal.ptyId, terminal.xterm.cols, terminal.xterm.rows)
           } catch {
             /* ignore */
@@ -416,13 +424,17 @@ export function TerminalPanel(): React.ReactElement {
   // Handle window/container resize
   useEffect(() => {
     const handleResize = (): void => {
-      if (fitAddonRef.current) {
-        try {
-          fitAddonRef.current.fit()
-        } catch {
-          /* ignore */
-        }
+      const term = xtermRef.current
+      const fitAddon = fitAddonRef.current
+      if (!fitAddon || !term) return
+      const wasAtBottom =
+        term.buffer.active.viewportY + term.rows >= term.buffer.active.length
+      try {
+        fitAddon.fit()
+      } catch {
+        /* ignore */
       }
+      if (wasAtBottom) { term.scrollToBottom() }
     }
 
     window.addEventListener('resize', handleResize)
