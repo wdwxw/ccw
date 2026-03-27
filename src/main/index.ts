@@ -9,6 +9,37 @@ import * as os from 'os'
 
 let hookServerPort = 0
 
+// Resolve a git path to a CCW worktree ID by scanning stored repos
+function resolveWorktreeByPath(gitPath: string): string | undefined {
+  const repos = store.get('repos') as Array<{
+    id: string; path: string;
+    worktrees: Array<{ id: string; path: string; status: string }>
+  }>
+  if (!Array.isArray(repos)) return undefined
+  for (const repo of repos) {
+    for (const wt of (repo.worktrees || [])) {
+      if (wt.status === 'active' && wt.path === gitPath) return wt.id
+    }
+    // Also match repo root itself
+    if (repo.path === gitPath) return repo.worktrees.find(w => w.status === 'active')?.id
+  }
+  return undefined
+}
+
+// Inject CLAUDE_PATH into wecode config so it always uses CCW's wrapper
+function ensureWecodeClaudePath(): void {
+  const configPath = join(os.homedir(), '.wecode-cli', 'config.json')
+  if (!fs.existsSync(configPath)) return
+  const wrapperPath = join(os.homedir(), '.ccw', 'bin', 'claude')
+  try {
+    const raw = fs.readFileSync(configPath, 'utf-8')
+    const config = JSON.parse(raw)
+    if (config.CLAUDE_PATH === wrapperPath) return  // already correct
+    config.CLAUDE_PATH = wrapperPath
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 4), 'utf-8')
+  } catch { /* ignore if config unreadable */ }
+}
+
 const ptyModule = require('node-pty')
 
 interface DetectedApp {
@@ -269,6 +300,9 @@ app.whenReady().then(async () => {
   // 自动配置 Claude CLI 换行所需的 IDE keybinding（用户无需手动运行 /terminal-setup）
   ensureClaudeKeybinding()
 
+  // Inject CCW claude wrapper into wecode config so external sessions get notifications
+  ensureWecodeClaudePath()
+
   // Detect installed apps with icons on startup
   const detectedApps = await detectInstalledApps()
   if (detectedApps.length > 0) {
@@ -280,10 +314,12 @@ app.whenReady().then(async () => {
   }
 
   // Start CCW hook server for Claude Code notifications
-  hookServerPort = await startHookServer(({ worktreeId, type }) => {
+  hookServerPort = await startHookServer(({ worktreeId, gitPath, type }) => {
+    const resolvedId = worktreeId || (gitPath ? resolveWorktreeByPath(gitPath) : undefined)
+    if (!resolvedId) return
     const win = getMainWindow()
     if (win && !win.isDestroyed()) {
-      win.webContents.send('ccw:notification', { worktreeId, type })
+      win.webContents.send('ccw:notification', { worktreeId: resolvedId, type })
     }
   })
 

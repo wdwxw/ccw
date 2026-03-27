@@ -8,7 +8,7 @@ import * as os from 'os'
 let server: http.Server | null = null
 
 export function startHookServer(
-  onNotification: (payload: { worktreeId: string; type: string }) => void
+  onNotification: (payload: { worktreeId?: string; gitPath?: string; type: string }) => void
 ): Promise<number> {
   if (server !== null) {
     throw new Error('ccwHookServer: server already started')
@@ -17,11 +17,15 @@ export function startHookServer(
     server = http.createServer((req, res) => {
       if (req.method === 'POST' && req.url === '/hook') {
         let body = ''
-        req.on('data', (chunk) => (body += chunk))
+        req.on('data', (chunk) => { if (body.length < 4096) body += chunk })
         req.on('end', () => {
           try {
             const payload = JSON.parse(body)
-            onNotification({ worktreeId: payload.worktreeId, type: payload.type })
+            onNotification({
+              worktreeId: payload.worktreeId || undefined,
+              gitPath: payload.gitPath || undefined,
+              type: payload.type || 'stop',
+            })
           } catch { /* ignore malformed */ }
           res.writeHead(200)
           res.end('OK')
@@ -33,6 +37,7 @@ export function startHookServer(
     })
     server.listen(0, '127.0.0.1', () => {
       const port = (server!.address() as AddressInfo).port
+      writeRegistry(port)
       writeScripts()
       resolve(port)
     })
@@ -42,6 +47,16 @@ export function startHookServer(
 export function closeHookServer(): void {
   server?.close()
   server = null
+}
+
+function writeRegistry(port: number): void {
+  const registryPath = path.join(os.homedir(), '.ccw', 'registry.json')
+  const content = JSON.stringify({ port }, null, 2)
+  try {
+    if (fs.readFileSync(registryPath, 'utf-8') === content) return
+  } catch { /* file doesn't exist yet */ }
+  fs.mkdirSync(path.dirname(registryPath), { recursive: true })
+  fs.writeFileSync(registryPath, content, 'utf-8')
 }
 
 function writeFile(filePath: string, content: string, executable: boolean): void {
@@ -91,8 +106,15 @@ find_real_claude() {
 
 REAL_CLAUDE=$(find_real_claude) || { echo "Error: claude not found" >&2; exit 127; }
 
-# Not in CCW context → pass through
-[[ -z "$CCW_WORKTREE_ID" || -z "$CCW_HOOK_PORT" ]] && exec "$REAL_CLAUDE" "$@"
+# Determine hook port: prefer CCW_HOOK_PORT env var, fall back to registry file
+_CCW_PORT="\${CCW_HOOK_PORT:-}"
+if [[ -z "$_CCW_PORT" ]]; then
+  _REG="$HOME/.ccw/registry.json"
+  [[ -f "$_REG" ]] && _CCW_PORT=$(grep -o '"port":[[:space:]]*[0-9]*' "$_REG" | grep -o '[0-9]*')
+fi
+
+# No CCW context at all → pass through
+[[ -z "$_CCW_PORT" ]] && exec "$REAL_CLAUDE" "$@"
 
 # Subcommands that don't support --settings
 case "\${1:-}" in
@@ -122,16 +144,34 @@ exec "$REAL_CLAUDE" --settings "$HOOKS_TMP" "$@"
     path.join(ccwDir, 'bin', 'ccw-hook'),
     `#!/usr/bin/env bash
 TYPE="\${1:-stop}"
+
+# --- Resolve PORT ---
 PORT="\${CCW_HOOK_PORT:-}"
+if [[ -z "$PORT" ]]; then
+  _REG="$HOME/.ccw/registry.json"
+  [[ -f "$_REG" ]] && PORT=$(grep -o '"port":[[:space:]]*[0-9]*' "$_REG" | grep -o '[0-9]*')
+fi
+[[ -z "$PORT" ]] && exit 0
+
+# --- Resolve worktree identifier ---
 WT_ID="\${CCW_WORKTREE_ID:-}"
-
-[[ -z "$PORT" || -z "$WT_ID" ]] && exit 0
-
-if command -v jq >/dev/null 2>&1; then
-  PAYLOAD="$(jq -n --arg type "$TYPE" --arg wid "$WT_ID" '{type:$type,worktreeId:$wid}')"
+if [[ -n "$WT_ID" ]]; then
+  # Fast path: CCW env var set (CCW's own terminals)
+  if command -v jq >/dev/null 2>&1; then
+    PAYLOAD="$(jq -n --arg type "$TYPE" --arg wid "$WT_ID" '{type:$type,worktreeId:$wid}')"
+  else
+    PAYLOAD="{\\"type\\":\\"$TYPE\\",\\"worktreeId\\":\\"$WT_ID\\"}"
+  fi
 else
-  # worktreeId is alphanumeric + hyphens — safe to interpolate
-  PAYLOAD="{\\"type\\":\\"$TYPE\\",\\"worktreeId\\":\\"$WT_ID\\"}"
+  # Fallback: detect git root path (used for wecode / external terminals)
+  GIT_PATH=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+  if command -v jq >/dev/null 2>&1; then
+    PAYLOAD="$(jq -n --arg type "$TYPE" --arg p "$GIT_PATH" '{type:$type,gitPath:$p}')"
+  else
+    # gitPath may contain path chars — use python3 for safe JSON encoding
+    PAYLOAD=$(python3 -c "import json,sys; print(json.dumps({'type':sys.argv[1],'gitPath':sys.argv[2]}))" "$TYPE" "$GIT_PATH" 2>/dev/null) || \
+    PAYLOAD="{\\"type\\":\\"$TYPE\\",\\"gitPath\\":\\"$(echo "$GIT_PATH" | sed 's/"/\\\\"/g')\\"}"
+  fi
 fi
 
 curl -s -X POST "http://127.0.0.1:$PORT/hook" \\
