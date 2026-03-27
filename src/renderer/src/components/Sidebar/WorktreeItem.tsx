@@ -82,7 +82,7 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
       <div
         className="group flex cursor-pointer items-center gap-[9px] rounded-[8px] transition-colors duration-100"
         style={{
-          padding: '8px 10px 8px 18px',
+          padding: '8px 10px',
           marginBottom: 2,
           opacity: isArchived ? 0.4 : 1,
           background: isSelected ? 'var(--ac, rgba(255,220,160,0.08))' : 'transparent',
@@ -97,22 +97,19 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
           }
         }}
       >
-        {/* ws-ind: orange dot */}
+        {/* notification dot — only visible when count > 0 */}
         <div style={{ width: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <div
-            className={count > 0 && !isArchived ? 'dot-notif-active' : ''}
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              background: isArchived
-                ? 'var(--t4)'
-                : isSelected
-                  ? 'var(--orange, #c88832)'
-                  : 'var(--color-success)',
-              boxShadow: isSelected ? '0 0 5px rgba(200,136,50,0.45)' : undefined,
-            }}
-          />
+          {count > 0 && !isArchived && (
+            <div
+              className="dot-notif-active"
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: 'var(--color-success)',
+              }}
+            />
+          )}
         </div>
 
         {/* ws-info */}
