@@ -13,7 +13,7 @@ export function QuickButtonsBar({ onSend }: QuickButtonsBarProps): React.ReactEl
       className="flex flex-wrap gap-1 px-3 py-2"
       style={{
         background: 'var(--color-bg-primary)',
-        borderTop: '0.5px solid var(--bs, rgba(255,220,160,0.07))',
+        borderTop: '0.5px solid var(--bs)',
       }}
     >
       {quickButtons.map((btn) => (

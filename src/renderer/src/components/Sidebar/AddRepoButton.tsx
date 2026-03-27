@@ -10,7 +10,7 @@ export function AddRepoButton(): React.ReactElement {
     <div
       className="flex items-center justify-between"
       style={{
-        borderTop: '0.5px solid var(--bs, rgba(255,220,160,0.07))',
+        borderTop: '0.5px solid var(--bs)',
         padding: '9px 8px',
       }}
     >

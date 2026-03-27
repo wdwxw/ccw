@@ -541,7 +541,7 @@ export function TerminalPanel(): React.ReactElement {
           style={{
             height: 32,
             background: 'var(--color-bg-secondary)',
-            borderBottom: '0.5px solid var(--bs, rgba(255,220,160,0.07))',
+            borderBottom: '0.5px solid var(--bs)',
           }}
         >
           {/* Session tabs */}
@@ -565,7 +565,7 @@ export function TerminalPanel(): React.ReactElement {
                 onMouseEnter={(e) => {
                   if (!isActive) {
                     e.currentTarget.style.color = 'var(--t3)'
-                    e.currentTarget.style.background = 'rgba(255,220,160,0.02)'
+                    e.currentTarget.style.background = 'var(--hv)'
                   }
                 }}
                 onMouseLeave={(e) => {

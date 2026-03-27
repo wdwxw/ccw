@@ -85,7 +85,7 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
           padding: '8px 10px',
           marginBottom: 2,
           opacity: isArchived ? 0.4 : 1,
-          background: isSelected ? 'var(--ac, rgba(255,220,160,0.08))' : 'transparent',
+          background: isSelected ? 'var(--ac)' : 'transparent',
         }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -155,7 +155,7 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
             style={{
               fontSize: 10,
               lineHeight: 1,
-              color: '#8B949E',
+              color: 'var(--t2)',
               background: 'rgba(139,148,158,0.15)',
               borderRadius: 7,
               padding: '1px 4px',

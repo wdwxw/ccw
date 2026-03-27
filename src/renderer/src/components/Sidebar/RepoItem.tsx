@@ -14,7 +14,7 @@ function RepoBadge({ name }: { name: string }): React.ReactElement {
       className="flex items-center justify-center rounded text-[10px] font-bold"
       style={{
         width: 18, height: 18,
-        background: '#252018',
+        background: 'var(--ac)',
         color: 'var(--t3)',
         flexShrink: 0,
         borderRadius: 4,
@@ -48,7 +48,7 @@ export function RepoItem({ repo }: RepoItemProps): React.ReactElement {
         style={{
           padding: '8px 10px',
           marginBottom: 2,
-          background: isHovered ? 'var(--ac, rgba(255,220,160,0.08))' : 'transparent',
+          background: isHovered ? 'var(--ac)' : 'transparent',
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -95,7 +95,7 @@ export function RepoItem({ repo }: RepoItemProps): React.ReactElement {
                   className="absolute right-0 top-6 z-20 w-28 overflow-hidden rounded-lg shadow-xl"
                   style={{
                     background: 'var(--color-bg-elevated)',
-                    border: '0.5px solid var(--bm, rgba(255,220,160,0.10))',
+                    border: '0.5px solid var(--bm)',
                   }}
                 >
                   <button

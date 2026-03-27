@@ -17,7 +17,7 @@ export function TerminalToolbar({
       style={{
         height: 34,
         background: 'var(--color-bg-primary)',
-        borderTop: '0.5px solid var(--bs, rgba(255,220,160,0.07))',
+        borderTop: '0.5px solid var(--bs)',
       }}
     >
       {/* chip style — matches reference .chip */}

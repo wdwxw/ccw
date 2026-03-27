@@ -13,7 +13,7 @@ export function Sidebar(): React.ReactElement {
         width: 240,
         minWidth: 240,
         background: 'var(--color-bg-secondary)',
-        borderRight: '0.5px solid var(--bs, rgba(255,220,160,0.07))',
+        borderRight: '0.5px solid var(--bs)',
       }}
     >
       {/* ── Activity row ─────────────────────────────────────── */}

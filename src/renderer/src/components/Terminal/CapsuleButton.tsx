@@ -57,14 +57,14 @@ function AppButton({
       aria-label={title}
       className="flex items-center gap-[5px] rounded-[6px] px-[9px] py-[3px] text-[11px] transition-colors duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-1"
       style={{
-        background: 'rgba(255,220,160,0.05)',
-        border: '0.5px solid var(--bm, rgba(255,220,160,0.10))',
+        background: 'var(--bg-btn)',
+        border: '0.5px solid var(--bm)',
         color: 'var(--t2)',
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,220,160,0.09)')}
-      onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,220,160,0.05)')}
-      onMouseDown={(e) => (e.currentTarget.style.background = 'rgba(255,220,160,0.12)')}
-      onMouseUp={(e) => (e.currentTarget.style.background = 'rgba(255,220,160,0.09)')}
+      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--hv2)')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-btn)')}
+      onMouseDown={(e) => (e.currentTarget.style.background = 'var(--ac)')}
+      onMouseUp={(e) => (e.currentTarget.style.background = 'var(--hv2)')}
     >
       <span className="flex h-[14px] w-[14px] shrink-0 items-center justify-center overflow-hidden rounded-sm">
         <AppIcon app={app} size={14} />
@@ -101,14 +101,14 @@ function DropdownToggle({
       aria-haspopup="listbox"
       className="flex items-center justify-center rounded-[6px] p-[6px] transition-colors duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-1"
       style={{
-        background: 'rgba(255,220,160,0.05)',
-        border: '0.5px solid var(--bm, rgba(255,220,160,0.10))',
+        background: 'var(--bg-btn)',
+        border: '0.5px solid var(--bm)',
         color: 'var(--t2)',
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,220,160,0.09)')}
-      onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,220,160,0.05)')}
-      onMouseDown={(e) => (e.currentTarget.style.background = 'rgba(255,220,160,0.12)')}
-      onMouseUp={(e) => (e.currentTarget.style.background = 'rgba(255,220,160,0.09)')}
+      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--hv2)')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-btn)')}
+      onMouseDown={(e) => (e.currentTarget.style.background = 'var(--ac)')}
+      onMouseUp={(e) => (e.currentTarget.style.background = 'var(--hv2)')}
     >
       <svg
         width="9"
@@ -146,12 +146,12 @@ function Pill({
       title={title}
       className="flex items-center gap-[5px] rounded-[6px] px-[9px] py-[3px] text-[11px] transition-colors duration-100"
       style={{
-        background: 'rgba(255,220,160,0.05)',
-        border: '0.5px solid var(--bm, rgba(255,220,160,0.10))',
+        background: 'var(--bg-btn)',
+        border: '0.5px solid var(--bm)',
         color: 'var(--t2)',
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,220,160,0.09)')}
-      onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,220,160,0.05)')}
+      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--hv2)')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-btn)')}
     >
       {children}
     </button>
@@ -264,7 +264,7 @@ export function CapsuleButton({ cwd }: CapsuleButtonProps): React.ReactElement {
               className="absolute right-0 top-8 z-50 w-44 overflow-hidden rounded-lg py-1 shadow-2xl"
               style={{
                 background: 'var(--color-bg-elevated)',
-                border: '0.5px solid var(--bm, rgba(255,220,160,0.10))',
+                border: '0.5px solid var(--bm)',
               }}
             >
               {externalApps.map((app) => (

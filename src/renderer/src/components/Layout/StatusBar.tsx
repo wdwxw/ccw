@@ -17,7 +17,7 @@ export function StatusBar(): React.ReactElement {
       style={{
         height: 22,
         background: 'var(--color-bg-secondary)',
-        borderTop: '0.5px solid var(--bs, rgba(255,220,160,0.07))',
+        borderTop: '0.5px solid var(--bs)',
         color: 'var(--t4)',
       }}
     >

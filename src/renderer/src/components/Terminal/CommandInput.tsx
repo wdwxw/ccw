@@ -61,7 +61,7 @@ export const CommandInput = forwardRef<CommandInputHandle, CommandInputProps>(
       /* input-zone */
       <div
         style={{
-          borderTop: '0.5px solid var(--bs, rgba(255,220,160,0.07))',
+          borderTop: '0.5px solid var(--bs)',
           padding: '14px 18px',
           background: 'var(--color-bg-primary)',
           flexShrink: 0,
@@ -72,11 +72,11 @@ export const CommandInput = forwardRef<CommandInputHandle, CommandInputProps>(
           className="overflow-hidden transition-colors duration-150"
           style={{
             background: 'var(--color-bg-secondary)',
-            border: '0.5px solid var(--bm, rgba(255,220,160,0.10))',
+            border: '0.5px solid var(--bm)',
             borderRadius: 10,
           }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = 'rgba(255,220,160,0.18)')}
-          onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--bm, rgba(255,220,160,0.10))')}
+          onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--ac-focus)')}
+          onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--bm)')}
         >
           {/* textarea */}
           <textarea
@@ -110,7 +110,7 @@ export const CommandInput = forwardRef<CommandInputHandle, CommandInputProps>(
             className="flex items-center gap-[5px]"
             style={{
               padding: '6px 10px 8px',
-              borderTop: '0.5px solid var(--bs, rgba(255,220,160,0.07))',
+              borderTop: '0.5px solid var(--bs)',
             }}
           >
             <span className="text-[11px]" style={{ color: 'var(--t4)' }}>
@@ -138,16 +138,16 @@ export const CommandInput = forwardRef<CommandInputHandle, CommandInputProps>(
               onClick={() => { if (command.trim()) { onSend(command); setCommand('') } }}
               className="flex items-center justify-center rounded-[6px] p-[5px] transition-colors duration-100"
               style={{
-                background: 'rgba(255,220,160,0.07)',
-                border: '0.5px solid var(--bm, rgba(255,220,160,0.10))',
+                background: 'var(--hv)',
+                border: '0.5px solid var(--bm)',
                 color: 'var(--t3)',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255,220,160,0.13)'
+                e.currentTarget.style.background = 'var(--hv2)'
                 e.currentTarget.style.color = 'var(--t1)'
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255,220,160,0.07)'
+                e.currentTarget.style.background = 'var(--hv)'
                 e.currentTarget.style.color = 'var(--t3)'
               }}
               title="发送 (Enter)"
