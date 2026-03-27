@@ -129,7 +129,7 @@ curl -s -X POST "http://127.0.0.1:$PORT/hook" \\
 // ~/.claude/settings.json hook injection
 // ---------------------------------------------------------------------------
 
-const CCW_HOOK_MARKER = '__ccw__'  // substring present in all CCW hook commands
+const CCW_HOOK_MARKER = '.ccw/bin/ccw-hook'  // substring present in all CCW hook commands
 
 function settingsPath(): string {
   return path.join(os.homedir(), '.claude', 'settings.json')
