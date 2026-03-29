@@ -144,11 +144,12 @@ function Pill({
     <button
       onClick={onClick}
       title={title}
-      className="flex items-center gap-[5px] rounded-[6px] px-[9px] py-[3px] text-[11px] transition-colors duration-100"
+      className="flex items-center gap-[5px] rounded-[6px] px-[8px] py-[2px] text-[11px] transition-colors duration-100"
       style={{
         background: 'var(--bg-btn)',
         border: '0.5px solid var(--bm)',
         color: 'var(--t2)',
+        lineHeight: 1.4,
       }}
       onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--hv2)')}
       onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-btn)')}

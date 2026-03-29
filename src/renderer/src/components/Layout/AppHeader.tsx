@@ -15,8 +15,9 @@ export function AppHeader(): React.ReactElement {
 
   return (
     <div
-      className="drag-region flex h-9 shrink-0 items-center gap-2"
+      className="drag-region flex shrink-0 items-center gap-2"
       style={{
+        height: 36,
         background: 'var(--color-bg-secondary)',
         borderBottom: '0.5px solid var(--bs)',
         paddingLeft: 12,
