@@ -133,7 +133,7 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
           ) : (
             <>
               <div
-                className="truncate text-[12px] leading-[1.3]"
+                className="truncate text-[14px] leading-[1.3]"
                 style={{
                   color: isSelected ? 'var(--t1)' : 'var(--t2)',
                   textDecoration: isArchived ? 'line-through' : undefined,
@@ -142,7 +142,7 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
               >
                 {worktree.branch}
               </div>
-              <div className="truncate text-[11px] mt-[1px]" style={{ color: 'var(--t4)' }}>
+              <div className="truncate text-[12px] mt-[1px]" style={{ color: 'var(--t4)' }}>
                 {dirName}
               </div>
             </>

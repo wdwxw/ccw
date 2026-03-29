@@ -62,7 +62,7 @@ export function RepoItem({ repo }: RepoItemProps): React.ReactElement {
         {/* Name */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
-            className="truncate text-[12px] leading-[1.3]"
+            className="truncate text-[14px] leading-[1.3]"
             style={{ color: isHovered ? 'var(--t1)' : 'var(--t2)', fontWeight: 500 }}
           >
             {repo.name}

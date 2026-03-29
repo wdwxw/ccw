@@ -153,6 +153,7 @@
   .text-\[11\.5px\] { font-size: calc(11.5px * var(--font-scale)) !important; }
   .text-\[12px\]    { font-size: calc(12px   * var(--font-scale)) !important; }
   .text-\[13px\]    { font-size: calc(13px   * var(--font-scale)) !important; }
+  .text-\[14px\]    { font-size: calc(14px   * var(--font-scale)) !important; }
   .text-xs          { font-size: calc(0.75rem  * var(--font-scale)) !important; }
   .text-sm          { font-size: calc(0.875rem * var(--font-scale)) !important; }
   .text-base        { font-size: calc(1rem     * var(--font-scale)) !important; }
