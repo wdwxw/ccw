@@ -293,48 +293,61 @@ let flashInterval: NodeJS.Timeout | null = null
 let flashPhase = false
 
 // 生成 Tray 图标 PNG（纯 Node.js，不依赖外部文件）
-// active=false: 白色普通图标；active=true: 绿色高亮图标
-// 方案9: "CCW" 字母 + 圆角矩形边框，44x44 RGBA（scaleFactor=2，Retina 标准）
+// 方案B: 深色实心圆角矩形背景 + 浅色 CCW 字母
+// active=false: 深色背景（#262626）+ 浅色字母；active=true: 蓝色背景（#0060D7）+ 白色字母
+// 44x44 RGBA（scaleFactor=2，对应 22x22 逻辑像素，Retina 标准）
 function buildTrayIconPNG(active: boolean): Buffer {
   const zlib = require('zlib') as typeof import('zlib')
   const SIZE = 44
   const rgba = Buffer.alloc(SIZE * SIZE * 4, 0) // 全透明
 
-  const fg: [number, number, number] = active ? [63, 185, 80] : [230, 237, 243]
+  // 背景色和前景色
+  const bg: [number, number, number] = active ? [0, 96, 215] : [38, 38, 38]
+  const fg: [number, number, number] = [230, 237, 243]
 
   function setPixel(x: number, y: number, r: number, g: number, b: number, a = 255): void {
     if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) return
     const i = (y * SIZE + x) * 4
     rgba[i] = r; rgba[i + 1] = g; rgba[i + 2] = b; rgba[i + 3] = a
   }
-  function sp(x: number, y: number): void { setPixel(x, y, ...fg) }
+  function spBg(x: number, y: number): void { setPixel(x, y, ...bg) }
+  function spFg(x: number, y: number): void { setPixel(x, y, ...fg) }
   // 2x 缩放辅助：以原始 22x22 坐标绘制 2x2 像素块
-  function sp2(ox: number, oy: number): void {
+  function sp2bg(ox: number, oy: number): void {
     const x = ox * 2, y = oy * 2
-    sp(x, y); sp(x+1, y); sp(x, y+1); sp(x+1, y+1)
+    spBg(x, y); spBg(x+1, y); spBg(x, y+1); spBg(x+1, y+1)
   }
-  function hline2(ox0: number, ox1: number, oy: number): void { for (let ox = ox0; ox <= ox1; ox++) sp2(ox, oy) }
-  function vline2(ox: number, oy0: number, oy1: number): void { for (let oy = oy0; oy <= oy1; oy++) sp2(ox, oy) }
+  function sp2fg(ox: number, oy: number): void {
+    const x = ox * 2, y = oy * 2
+    spFg(x, y); spFg(x+1, y); spFg(x, y+1); spFg(x+1, y+1)
+  }
+  function hline2fg(ox0: number, ox1: number, oy: number): void { for (let ox = ox0; ox <= ox1; ox++) sp2fg(ox, oy) }
+  function vline2fg(ox: number, oy0: number, oy1: number): void { for (let oy = oy0; oy <= oy1; oy++) sp2fg(ox, oy) }
 
-  // ── 圆角矩形边框（原始坐标 0..21）──
+  // ── 圆角矩形实心填充（原始坐标 0..21，圆角 2px）──
   const L = 0, R = 21, T = 0, B = 21
-  hline2(L + 2, R - 2, T);   hline2(L + 2, R - 2, B)
-  vline2(L, T + 2, B - 2);   vline2(R, T + 2, B - 2)
-  sp2(L+1, T+1); sp2(R-1, T+1); sp2(L+1, B-1); sp2(R-1, B-1)
+  for (let oy = T; oy <= B; oy++) {
+    for (let ox = L; ox <= R; ox++) {
+      // 跳过四个直角顶点像素，形成圆角
+      const isCorner = (ox === L && oy === T) || (ox === R && oy === T) ||
+                       (ox === L && oy === B) || (ox === R && oy === B)
+      if (!isCorner) sp2bg(ox, oy)
+    }
+  }
 
   // ── 字母 C（左，x:2..4, y:8..14）──
-  hline2(2, 4, 8); hline2(2, 4, 14)
-  vline2(2, 9, 13)
+  hline2fg(2, 4, 8); hline2fg(2, 4, 14)
+  vline2fg(2, 9, 13)
 
   // ── 字母 C（中，x:6..8, y:8..14）──
-  hline2(6, 8, 8); hline2(6, 8, 14)
-  vline2(6, 9, 13)
+  hline2fg(6, 8, 8); hline2fg(6, 8, 14)
+  vline2fg(6, 9, 13)
 
   // ── 字母 W（右，x:10..14, y:8..14）──
-  vline2(10, 8, 12); vline2(14, 8, 12)
-  sp2(11, 13); sp2(11, 14)
-  sp2(13, 13); sp2(13, 14)
-  sp2(12, 12)
+  vline2fg(10, 8, 12); vline2fg(14, 8, 12)
+  sp2fg(11, 13); sp2fg(11, 14)
+  sp2fg(13, 13); sp2fg(13, 14)
+  sp2fg(12, 12)
 
   // ── PNG 组装（IHDR + IDAT + IEND）──
   function crc32(buf: Buffer): number {
