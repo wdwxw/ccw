@@ -10,7 +10,7 @@ import { TerminalToolbar } from './TerminalToolbar'
 import { CommandInput, CommandInputHandle } from './CommandInput'
 import { QuickButtonsBar } from './QuickButtonsBar'
 import { TerminalLogModal } from './TerminalLogModal'
-import { FolderOpen, SquareX, Pencil, ArrowDown } from 'lucide-react'
+import { FolderOpen, SquareX, Pencil, ArrowDown, X } from 'lucide-react'
 
 // Warm terminal theme — closely mirrors reference, subtle warm shift
 const XTERM_THEME = {
