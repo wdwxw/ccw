@@ -468,17 +468,17 @@ app.whenReady().then(async () => {
   logger.setEnabled(debugLog === true)
   logger.info('Main', 'app ready, starting hook server')
 
-  hookServerPort = await startHookServer(({ worktreeId, gitPath, type }) => {
+  hookServerPort = await startHookServer(({ worktreeId, gitPath, type, sessionId }) => {
     const resolvedId = worktreeId || (gitPath ? resolveWorktreeByPath(gitPath) : undefined)
-    logger.info('Main', 'notification received', { worktreeId, gitPath, type, resolvedId })
+    logger.info('Main', 'notification received', { worktreeId, gitPath, type, resolvedId, sessionId })
     if (!resolvedId) {
       logger.warn('Main', 'notification dropped: could not resolve worktreeId', { worktreeId, gitPath })
       return
     }
     const win = getMainWindow()
     if (win && !win.isDestroyed()) {
-      win.webContents.send('ccw:notification', { worktreeId: resolvedId, type })
-      logger.info('Main', 'ccw:notification sent to renderer', { worktreeId: resolvedId, type })
+      win.webContents.send('ccw:notification', { worktreeId: resolvedId, type, sessionId })
+      logger.info('Main', 'ccw:notification sent to renderer', { worktreeId: resolvedId, type, sessionId })
     } else {
       logger.warn('Main', 'notification dropped: main window not available')
     }
@@ -743,6 +743,7 @@ function registerIpcHandlers(): void {
         TERM_PROGRAM: 'vscode',
         LANG: process.env.LANG || 'en_US.UTF-8',
         CCW_WORKTREE_ID: worktreeId || '',
+        CCW_SESSION_ID: id,
         CCW_HOOK_PORT: String(hookServerPort),
       }
     })

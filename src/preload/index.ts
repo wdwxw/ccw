@@ -64,8 +64,8 @@ const api = {
     dirname: (filePath: string) => ipcRenderer.invoke('path:dirname', filePath)
   },
   notification: {
-    onNotification: (cb: (payload: { worktreeId: string; type: string }) => void) => {
-      const handler = (_e: Electron.IpcRendererEvent, payload: { worktreeId: string; type: string }) => cb(payload)
+    onNotification: (cb: (payload: { worktreeId: string; type: string; sessionId?: string }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, payload: { worktreeId: string; type: string; sessionId?: string }) => cb(payload)
       ipcRenderer.on('ccw:notification', handler)
       return () => ipcRenderer.removeListener('ccw:notification', handler)
     }

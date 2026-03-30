@@ -11,7 +11,7 @@ const MOD = 'HookServer'
 let server: http.Server | null = null
 
 export function startHookServer(
-  onNotification: (payload: { worktreeId?: string; gitPath?: string; type: string }) => void
+  onNotification: (payload: { worktreeId?: string; gitPath?: string; type: string; sessionId?: string }) => void
 ): Promise<number> {
   if (server !== null) {
     throw new Error('ccwHookServer: server already started')
@@ -30,6 +30,7 @@ export function startHookServer(
               worktreeId: payload.worktreeId || undefined,
               gitPath: payload.gitPath || undefined,
               type: payload.type || 'stop',
+              sessionId: payload.sessionId || undefined,
             }
             logger.info(MOD, 'hook payload parsed, dispatching notification', resolved)
             onNotification(resolved)
@@ -109,12 +110,13 @@ fi
 
 # --- Resolve worktree identifier ---
 WT_ID="\${CCW_WORKTREE_ID:-}"
+SESSION_ID="\${CCW_SESSION_ID:-}"
 if [[ -n "$WT_ID" ]]; then
   # Fast path: CCW env var set (CCW's own terminals)
   if command -v jq >/dev/null 2>&1; then
-    PAYLOAD="$(jq -n --arg type "$TYPE" --arg wid "$WT_ID" '{type:$type,worktreeId:$wid}')"
+    PAYLOAD="$(jq -n --arg type "$TYPE" --arg wid "$WT_ID" --arg sid "$SESSION_ID" '{type:$type,worktreeId:$wid,sessionId:$sid}')"
   else
-    PAYLOAD="{\\"type\\":\\"$TYPE\\",\\"worktreeId\\":\\"$WT_ID\\"}"
+    PAYLOAD="{\\"type\\":\\"$TYPE\\",\\"worktreeId\\":\\"$WT_ID\\",\\"sessionId\\":\\"$SESSION_ID\\"}"
   fi
 else
   # Fallback: detect git root path (wecode / Zed / any external terminal)

@@ -5,11 +5,12 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import { SearchAddon } from '@xterm/addon-search'
 import '@xterm/xterm/css/xterm.css'
 import { useRepoStore } from '../../stores/repoStore'
+import { useNotificationStore } from '../../stores/notificationStore'
 import { TerminalToolbar } from './TerminalToolbar'
 import { CommandInput, CommandInputHandle } from './CommandInput'
 import { QuickButtonsBar } from './QuickButtonsBar'
 import { TerminalLogModal } from './TerminalLogModal'
-import { FolderOpen, X, Pencil, ArrowDown } from 'lucide-react'
+import { FolderOpen, SquareX, Pencil, ArrowDown } from 'lucide-react'
 
 // Warm terminal theme — closely mirrors reference, subtle warm shift
 const XTERM_THEME = {
@@ -92,6 +93,8 @@ export function TerminalPanel(): React.ReactElement {
   const sessionCount = currentGroup?.sessions.length ?? 0
   const activeSessionIndex = currentGroup?.activeIndex ?? 0
 
+  const sessionBlinks = useNotificationStore((s) => wtId ? s.sessionBlinks[wtId] : undefined)
+
   const destroyAllTerminals = useCallback(async () => {
     for (const [, group] of sessionGroups.current) {
       for (const terminal of group.sessions) {
@@ -162,7 +165,14 @@ export function TerminalPanel(): React.ReactElement {
         return true
       })
 
-      xterm.onData((data) => window.api.pty.write(ptyId, data))
+      xterm.onData((data) => {
+        window.api.pty.write(ptyId, data)
+        // 清除该 session 的闪烁（用户输入表示正在操作）
+        const blinks = useNotificationStore.getState().sessionBlinks[wtId]
+        if (blinks?.has(ptyId)) {
+          useNotificationStore.getState().clearSessionBlink(wtId, ptyId)
+        }
+      })
       xterm.onResize(({ cols, rows }) => window.api.pty.resize(ptyId, cols, rows))
 
       const removeDataListener = window.api.pty.onData(ptyId, (data) => xterm.write(data))
@@ -269,6 +279,13 @@ export function TerminalPanel(): React.ReactElement {
       group.activeIndex = index
       setSessionVersion((v) => v + 1)
       await activateSession(wtId, group.sessions[index], true)
+
+      // 清除该 tab 的闪烁通知
+      const ptyId = group.sessions[index].ptyId
+      const blinks = useNotificationStore.getState().sessionBlinks[wtId]
+      if (blinks?.has(ptyId)) {
+        useNotificationStore.getState().clearSessionBlink(wtId, ptyId)
+      }
     },
     [wtId, activateSession]
   )
@@ -497,6 +514,12 @@ export function TerminalPanel(): React.ReactElement {
     xtermRef.current?.scrollToBottom()
   }, [])
 
+  const handleClearNotifications = useCallback(() => {
+    if (wtId) {
+      useNotificationStore.getState().clearNotification(wtId)
+    }
+  }, [wtId])
+
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -621,6 +644,7 @@ export function TerminalPanel(): React.ReactElement {
           {sessionCount > 0 && currentGroup?.sessions.map((session, i) => {
             const isActive  = i === activeSessionIndex
             const isEditing = editingTab?.wtId === wtId && editingTab?.index === i
+            const isBlinking = sessionBlinks?.has(session.ptyId) ?? false
             return (
               <div
                 key={i}
@@ -629,7 +653,7 @@ export function TerminalPanel(): React.ReactElement {
                   padding: '0 14px',
                   fontSize: 'calc(12px * var(--font-scale))',
                   color: isActive ? 'var(--t1)' : 'var(--t4)',
-                  borderBottom: isActive
+                  borderBottom: isActive && !isBlinking
                     ? '1.5px solid var(--t1)'
                     : '1.5px solid transparent',
                   position: 'relative',
@@ -649,6 +673,21 @@ export function TerminalPanel(): React.ReactElement {
                 }}
                 onClick={() => !isEditing && handleSwitchSession(i)}
               >
+                {/* blinking underline for pending notification */}
+                {isBlinking && (
+                  <span
+                    className="tab-blink-underline"
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: '1.5px',
+                      background: 'var(--color-success)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                )}
                 {/* ✴ star prefix — matches reference */}
                 <span style={{ color: isActive ? 'var(--t2)' : 'var(--t4)', fontSize: 'calc(12px * var(--font-scale))', lineHeight: 1 }}>
                   ✴
@@ -735,6 +774,23 @@ export function TerminalPanel(): React.ReactElement {
             className="flex items-center gap-2 pr-3"
             style={{ color: 'var(--t4)', fontSize: 'calc(11px * var(--font-scale))' }}
           >
+            {/* clear notifications */}
+            <button
+              onClick={handleClearNotifications}
+              className="flex items-center justify-center rounded p-[3px] transition-colors duration-100"
+              style={{ color: 'var(--t4)' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--color-accent)'
+                e.currentTarget.style.background = 'var(--hv)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--t4)'
+                e.currentTarget.style.background = 'transparent'
+              }}
+              title="清除提醒"
+            >
+              <SquareX size={12} />
+            </button>
             <button
               onClick={handleOpenInFinder}
               className="flex items-center gap-1 rounded px-[6px] py-[3px] transition-colors duration-100"
