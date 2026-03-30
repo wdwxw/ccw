@@ -56,7 +56,16 @@ const api = {
       const handler = () => cb()
       ipcRenderer.on('app:new-tab', handler)
       return () => ipcRenderer.removeListener('app:new-tab', handler)
-    }
+    },
+    getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
+    checkUpdate: (): Promise<{
+      hasUpdate?: boolean
+      latestVersion?: string
+      currentVersion?: string
+      downloadUrl?: string
+      error?: string
+    }> => ipcRenderer.invoke('app:checkUpdate'),
+    openUrl: (url: string) => ipcRenderer.invoke('app:openUrl', url),
   },
   fs: {
     exists: (path: string) => ipcRenderer.invoke('fs:exists', path)
@@ -65,8 +74,8 @@ const api = {
     dirname: (filePath: string) => ipcRenderer.invoke('path:dirname', filePath)
   },
   notification: {
-    onNotification: (cb: (payload: { worktreeId: string; type: string }) => void) => {
-      const handler = (_e: Electron.IpcRendererEvent, payload: { worktreeId: string; type: string }) => cb(payload)
+    onNotification: (cb: (payload: { worktreeId: string; type: string; sessionId?: string }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, payload: { worktreeId: string; type: string; sessionId?: string }) => cb(payload)
       ipcRenderer.on('ccw:notification', handler)
       return () => ipcRenderer.removeListener('ccw:notification', handler)
     }

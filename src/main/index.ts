@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, Tray, nativeImage, Menu } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, Tray, nativeImage, Menu, nativeTheme, net } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import Store from 'electron-store'
@@ -296,71 +296,22 @@ let tray: Tray | null = null
 let flashInterval: NodeJS.Timeout | null = null
 let flashPhase = false
 
-// 生成 Tray 图标 PNG（纯 Node.js，不依赖外部文件）
-// 方案B: 深色实心圆角矩形背景 + 浅色 CCW 字母
-// active=false: 深色背景（#262626）+ 浅色字母；active=true: 蓝色背景（#0060D7）+ 白色字母
-// 44x44 RGBA（scaleFactor=2，对应 22x22 逻辑像素，Retina 标准）
-function buildTrayIconPNG(active: boolean): Buffer {
+// ── Tray 图标生成 ──────────────────────────────────────────────────────────────
+// 镂空风格：圆角矩形背景 + CCW 透明镂空
+//   深色菜单栏 → 白色背景 + CCW 镂空
+//   浅色菜单栏 → 深色背景 + CCW 镂空
+//   动画/Active → 蓝色背景 + CCW 镂空
+// 32×32 RGBA（scaleFactor=2 → 16pt 逻辑像素，符合 macOS HIG）
+
+function _assemblePNG(rgba: Buffer, SIZE: number): Buffer {
   const zlib = require('zlib') as typeof import('zlib')
-  const SIZE = 44
-  const rgba = Buffer.alloc(SIZE * SIZE * 4, 0) // 全透明
-
-  // 背景色和前景色
-  const bg: [number, number, number] = active ? [0, 96, 215] : [38, 38, 38]
-  const fg: [number, number, number] = [230, 237, 243]
-
-  function setPixel(x: number, y: number, r: number, g: number, b: number, a = 255): void {
-    if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) return
-    const i = (y * SIZE + x) * 4
-    rgba[i] = r; rgba[i + 1] = g; rgba[i + 2] = b; rgba[i + 3] = a
+  const table: number[] = []
+  for (let n = 0; n < 256; n++) {
+    let c = n
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+    table[n] = c
   }
-  function spBg(x: number, y: number): void { setPixel(x, y, ...bg) }
-  function spFg(x: number, y: number): void { setPixel(x, y, ...fg) }
-  // 2x 缩放辅助：以原始 22x22 坐标绘制 2x2 像素块
-  function sp2bg(ox: number, oy: number): void {
-    const x = ox * 2, y = oy * 2
-    spBg(x, y); spBg(x+1, y); spBg(x, y+1); spBg(x+1, y+1)
-  }
-  function sp2fg(ox: number, oy: number): void {
-    const x = ox * 2, y = oy * 2
-    spFg(x, y); spFg(x+1, y); spFg(x, y+1); spFg(x+1, y+1)
-  }
-  function hline2fg(ox0: number, ox1: number, oy: number): void { for (let ox = ox0; ox <= ox1; ox++) sp2fg(ox, oy) }
-  function vline2fg(ox: number, oy0: number, oy1: number): void { for (let oy = oy0; oy <= oy1; oy++) sp2fg(ox, oy) }
-
-  // ── 圆角矩形实心填充（原始坐标 0..21，圆角 2px）──
-  const L = 0, R = 21, T = 0, B = 21
-  for (let oy = T; oy <= B; oy++) {
-    for (let ox = L; ox <= R; ox++) {
-      // 跳过四个直角顶点像素，形成圆角
-      const isCorner = (ox === L && oy === T) || (ox === R && oy === T) ||
-                       (ox === L && oy === B) || (ox === R && oy === B)
-      if (!isCorner) sp2bg(ox, oy)
-    }
-  }
-
-  // ── 字母 C（左，x:2..4, y:8..14）──
-  hline2fg(2, 4, 8); hline2fg(2, 4, 14)
-  vline2fg(2, 9, 13)
-
-  // ── 字母 C（中，x:6..8, y:8..14）──
-  hline2fg(6, 8, 8); hline2fg(6, 8, 14)
-  vline2fg(6, 9, 13)
-
-  // ── 字母 W（右，x:10..14, y:8..14）──
-  vline2fg(10, 8, 12); vline2fg(14, 8, 12)
-  sp2fg(11, 13); sp2fg(11, 14)
-  sp2fg(13, 13); sp2fg(13, 14)
-  sp2fg(12, 12)
-
-  // ── PNG 组装（IHDR + IDAT + IEND）──
   function crc32(buf: Buffer): number {
-    const table: number[] = []
-    for (let n = 0; n < 256; n++) {
-      let c = n
-      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
-      table[n] = c
-    }
     let crc = 0xffffffff
     for (let i = 0; i < buf.length; i++) crc = table[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8)
     return (crc ^ 0xffffffff) >>> 0
@@ -368,34 +319,75 @@ function buildTrayIconPNG(active: boolean): Buffer {
   function chunk(type: string, data: Buffer): Buffer {
     const typeB = Buffer.from(type, 'ascii')
     const len = Buffer.alloc(4); len.writeUInt32BE(data.length)
-    const crcInput = Buffer.concat([typeB, data])
-    const crcB = Buffer.alloc(4); crcB.writeUInt32BE(crc32(crcInput))
+    const crcB = Buffer.alloc(4); crcB.writeUInt32BE(crc32(Buffer.concat([typeB, data])))
     return Buffer.concat([len, typeB, data, crcB])
   }
-
   const ihdr = Buffer.alloc(13)
-  ihdr.writeUInt32BE(SIZE, 0); ihdr.writeUInt32BE(SIZE, 4)
-  ihdr[8] = 8; ihdr[9] = 6 // 8-bit RGBA
-
-  // IDAT: 每行前加 filter byte 0
+  ihdr.writeUInt32BE(SIZE, 0); ihdr.writeUInt32BE(SIZE, 4); ihdr[8] = 8; ihdr[9] = 6
   const raw = Buffer.alloc(SIZE * (1 + SIZE * 4))
   for (let y = 0; y < SIZE; y++) {
     raw[y * (1 + SIZE * 4)] = 0
     rgba.copy(raw, y * (1 + SIZE * 4) + 1, y * SIZE * 4, (y + 1) * SIZE * 4)
   }
-  const compressed = zlib.deflateSync(raw)
-
-  const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
-  return Buffer.concat([sig, chunk('IHDR', ihdr), chunk('IDAT', compressed), chunk('IEND', Buffer.alloc(0))])
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', zlib.deflateSync(raw)),
+    chunk('IEND', Buffer.alloc(0))
+  ])
 }
 
-function buildTrayIcon(active: boolean): Electron.NativeImage {
-  const png = buildTrayIconPNG(active)
-  return nativeImage.createFromBuffer(png, { scaleFactor: 2 })
+// 镂空风格通用生成：圆角矩形背景（PAD=0, BRAD=6）+ CCW 像素镂空
+// SIZE=44px (22pt @2x)，与系统标准菜单栏图标尺寸一致
+function buildTrayIconPNG(bgR: number, bgG: number, bgB: number): Buffer {
+  const SIZE = 44
+  const rgba = Buffer.alloc(SIZE * SIZE * 4, 0)
+  function setPixel(x: number, y: number, r: number, g: number, b: number, a: number): void {
+    if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) return
+    const i = (y * SIZE + x) * 4; rgba[i]=r; rgba[i+1]=g; rgba[i+2]=b; rgba[i+3]=a
+  }
+  // 圆角矩形背景（BRAD=6，边缘填满）
+  const BRAD = 6, x1 = SIZE - 1, y1 = SIZE - 1
+  for (let py = 0; py < SIZE; py++) {
+    for (let px = 0; px < SIZE; px++) {
+      const inTL = px < BRAD && py < BRAD
+      const inTR = px > x1-BRAD && py < BRAD
+      const inBL = px < BRAD && py > y1-BRAD
+      const inBR = px > x1-BRAD && py > y1-BRAD
+      if (inTL) { const dx=px-BRAD, dy=py-BRAD; if (dx*dx+dy*dy > BRAD*BRAD) continue }
+      else if (inTR) { const dx=px-(x1-BRAD), dy=py-BRAD; if (dx*dx+dy*dy > BRAD*BRAD) continue }
+      else if (inBL) { const dx=px-BRAD, dy=py-(y1-BRAD); if (dx*dx+dy*dy > BRAD*BRAD) continue }
+      else if (inBR) { const dx=px-(x1-BRAD), dy=py-(y1-BRAD); if (dx*dx+dy*dy > BRAD*BRAD) continue }
+      setPixel(px, py, bgR, bgG, bgB, 255)
+    }
+  }
+  // CCW 像素镂空（单元格坐标系，每单元 = 2×2 像素，22-unit 网格）
+  // C1: 列4..6 行8..12 | C2: 列8..10 行8..12 | W: 列12..16 行8..12
+  function dot2(ux: number, uy: number): void {
+    setPixel(ux*2, uy*2, 0,0,0,0);     setPixel(ux*2+1, uy*2, 0,0,0,0)
+    setPixel(ux*2, uy*2+1, 0,0,0,0);   setPixel(ux*2+1, uy*2+1, 0,0,0,0)
+  }
+  function h(x0: number, x1: number, y: number): void { for (let x=x0;x<=x1;x++) dot2(x,y) }
+  function v(x: number, y0: number, y1: number): void { for (let y=y0;y<=y1;y++) dot2(x,y) }
+  h(4,6,8);  h(4,6,12); v(4,9,11)        // C 左
+  h(8,10,8); h(8,10,12); v(8,9,11)       // C 中
+  v(12,8,11); v(16,8,11)                  // W 两竖
+  dot2(13,12); dot2(15,12); dot2(14,11)   // W 底部 V 型
+  return _assemblePNG(rgba, SIZE)
+}
+
+function buildTrayIconIdle(isDark: boolean): Electron.NativeImage {
+  // 深色菜单栏 → 白色背景；浅色菜单栏 → 深色背景
+  const [r, g, b] = isDark ? [255, 255, 255] : [42, 42, 42]
+  return nativeImage.createFromBuffer(buildTrayIconPNG(r, g, b), { scaleFactor: 2 })
+}
+
+function buildTrayIconActive(): Electron.NativeImage {
+  return nativeImage.createFromBuffer(buildTrayIconPNG(26, 86, 219), { scaleFactor: 2 }) // #1A56DB
 }
 
 function createTray(): void {
-  tray = new Tray(buildTrayIcon(false))
+  tray = new Tray(buildTrayIconIdle(nativeTheme.shouldUseDarkColors))
   tray.setToolTip('CCW — Git Worktree Manager')
 
   const contextMenu = Menu.buildFromTemplate([
@@ -417,7 +409,12 @@ function createTray(): void {
   ])
   tray.setContextMenu(contextMenu)
 
-  // macOS: setContextMenu 后左键单击也会弹菜单，用 double-click 来打开窗口
+  // 系统深/浅色切换时更新图标
+  nativeTheme.on('updated', () => {
+    if (!tray || flashInterval) return
+    tray.setImage(buildTrayIconIdle(nativeTheme.shouldUseDarkColors))
+  })
+
   tray.on('double-click', () => {
     const win = getMainWindow()
     if (win) {
@@ -432,7 +429,7 @@ function startTrayFlash(): void {
   if (flashInterval) return
   flashInterval = setInterval(() => {
     flashPhase = !flashPhase
-    tray?.setImage(buildTrayIcon(flashPhase))
+    tray?.setImage(flashPhase ? buildTrayIconActive() : buildTrayIconIdle(nativeTheme.shouldUseDarkColors))
   }, 600)
 }
 
@@ -442,7 +439,7 @@ function stopTrayFlash(): void {
     flashInterval = null
   }
   flashPhase = false
-  tray?.setImage(buildTrayIcon(false))
+  tray?.setImage(buildTrayIconIdle(nativeTheme.shouldUseDarkColors))
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -539,17 +536,17 @@ app.whenReady().then(async () => {
   logger.setEnabled(debugLog === true)
   logger.info('Main', 'app ready, starting hook server')
 
-  hookServerPort = await startHookServer(({ worktreeId, gitPath, type }) => {
+  hookServerPort = await startHookServer(({ worktreeId, gitPath, type, sessionId }) => {
     const resolvedId = worktreeId || (gitPath ? resolveWorktreeByPath(gitPath) : undefined)
-    logger.info('Main', 'notification received', { worktreeId, gitPath, type, resolvedId })
+    logger.info('Main', 'notification received', { worktreeId, gitPath, type, resolvedId, sessionId })
     if (!resolvedId) {
       logger.warn('Main', 'notification dropped: could not resolve worktreeId', { worktreeId, gitPath })
       return
     }
     const win = getMainWindow()
     if (win && !win.isDestroyed()) {
-      win.webContents.send('ccw:notification', { worktreeId: resolvedId, type })
-      logger.info('Main', 'ccw:notification sent to renderer', { worktreeId: resolvedId, type })
+      win.webContents.send('ccw:notification', { worktreeId: resolvedId, type, sessionId })
+      logger.info('Main', 'ccw:notification sent to renderer', { worktreeId: resolvedId, type, sessionId })
     } else {
       logger.warn('Main', 'notification dropped: main window not available')
     }
@@ -814,6 +811,7 @@ function registerIpcHandlers(): void {
         TERM_PROGRAM: 'vscode',
         LANG: process.env.LANG || 'en_US.UTF-8',
         CCW_WORKTREE_ID: worktreeId || '',
+        CCW_SESSION_ID: id,
         CCW_HOOK_PORT: String(hookServerPort),
       }
     })
@@ -926,6 +924,31 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('logger:getLogPath', () => {
     return logger.getLogPath()
+  })
+
+  // ── Image ──
+  // ── Update Check ──
+  ipcMain.handle('app:getVersion', () => app.getVersion())
+
+  ipcMain.handle('app:checkUpdate', async () => {
+    try {
+      const res = await net.fetch(
+        'https://api.github.com/repos/wangchen12/ccw2/releases/latest',
+        { headers: { 'User-Agent': 'CCW-App' } }
+      )
+      if (!res.ok) return { error: `请求失败 (${res.status})` }
+      const data = await res.json() as { tag_name: string; html_url: string; name: string }
+      const latestVersion = data.tag_name.replace(/^v/, '')
+      const currentVersion = app.getVersion()
+      const hasUpdate = latestVersion !== currentVersion
+      return { hasUpdate, latestVersion, currentVersion, downloadUrl: data.html_url }
+    } catch (e: any) {
+      return { error: '网络连接失败，请稍后再试' }
+    }
+  })
+
+  ipcMain.handle('app:openUrl', (_e, url: string) => {
+    shell.openExternal(url)
   })
 
   // ── Image ──
