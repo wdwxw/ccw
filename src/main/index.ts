@@ -333,16 +333,17 @@ function _assemblePNG(rgba: Buffer, SIZE: number): Buffer {
   ])
 }
 
-// 镂空风格通用生成：圆角矩形背景（PAD=0, BRAD=7）+ CCW 像素镂空
+// 镂空风格通用生成：圆角矩形背景（PAD=0, BRAD=6）+ CCW 像素镂空
+// SIZE=44px (22pt @2x)，与系统标准菜单栏图标尺寸一致
 function buildTrayIconPNG(bgR: number, bgG: number, bgB: number): Buffer {
-  const SIZE = 32
+  const SIZE = 44
   const rgba = Buffer.alloc(SIZE * SIZE * 4, 0)
   function setPixel(x: number, y: number, r: number, g: number, b: number, a: number): void {
     if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) return
     const i = (y * SIZE + x) * 4; rgba[i]=r; rgba[i+1]=g; rgba[i+2]=b; rgba[i+3]=a
   }
-  // 圆角矩形背景（BRAD=7，边缘填满）
-  const BRAD = 7, x1 = SIZE - 1, y1 = SIZE - 1
+  // 圆角矩形背景（BRAD=6，边缘填满）
+  const BRAD = 6, x1 = SIZE - 1, y1 = SIZE - 1
   for (let py = 0; py < SIZE; py++) {
     for (let px = 0; px < SIZE; px++) {
       const inTL = px < BRAD && py < BRAD
@@ -356,18 +357,18 @@ function buildTrayIconPNG(bgR: number, bgG: number, bgB: number): Buffer {
       setPixel(px, py, bgR, bgG, bgB, 255)
     }
   }
-  // CCW 像素镂空（单元格坐标系，每单元 = 2×2 像素）
-  // C1: 列1..3 行5..9 | C2: 列5..7 行5..9 | W: 列9..13 行5..9
+  // CCW 像素镂空（单元格坐标系，每单元 = 2×2 像素，22-unit 网格）
+  // C1: 列4..6 行8..12 | C2: 列8..10 行8..12 | W: 列12..16 行8..12
   function dot2(ux: number, uy: number): void {
     setPixel(ux*2, uy*2, 0,0,0,0);     setPixel(ux*2+1, uy*2, 0,0,0,0)
     setPixel(ux*2, uy*2+1, 0,0,0,0);   setPixel(ux*2+1, uy*2+1, 0,0,0,0)
   }
   function h(x0: number, x1: number, y: number): void { for (let x=x0;x<=x1;x++) dot2(x,y) }
   function v(x: number, y0: number, y1: number): void { for (let y=y0;y<=y1;y++) dot2(x,y) }
-  h(1,3,5); h(1,3,9); v(1,6,8)           // C 左
-  h(5,7,5); h(5,7,9); v(5,6,8)           // C 中
-  v(9,5,8); v(13,5,8)                     // W 两竖
-  dot2(10,9); dot2(12,9); dot2(11,8)      // W 底部 V 型
+  h(4,6,8);  h(4,6,12); v(4,9,11)        // C 左
+  h(8,10,8); h(8,10,12); v(8,9,11)       // C 中
+  v(12,8,11); v(16,8,11)                  // W 两竖
+  dot2(13,12); dot2(15,12); dot2(14,11)   // W 底部 V 型
   return _assemblePNG(rgba, SIZE)
 }
 
