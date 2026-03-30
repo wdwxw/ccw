@@ -33,7 +33,6 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
   const updateWorktreeNote = useRepoStore((s) => s.updateWorktreeNote)
 
   const count = useNotificationStore((s) => s.notifications[worktree.id] ?? 0)
-  const clearNotification = useNotificationStore((s) => s.clearNotification)
 
   const isSelected = selectedWorktreeId === worktree.id
   const isArchived = worktree.status === 'archived'
@@ -120,7 +119,6 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
         onClick={() => {
           if (!isArchived && !isEditing) {
             selectWorktree(repoId, worktree.id)
-            if (count > 0) clearNotification(worktree.id)
           }
         }}
       >
