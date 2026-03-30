@@ -13,6 +13,7 @@ export interface Worktree {
   path: string
   status: 'active' | 'archived'
   createdAt: number
+  note?: string
 }
 
 export interface ExternalApp {

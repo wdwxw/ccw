@@ -26,6 +26,7 @@ interface RepoState {
   selectWorktree: (repoId: string, worktreeId: string) => void
   refreshWorktrees: (repoId: string) => Promise<void>
   renameWorktree: (repoId: string, worktreeId: string, displayName: string) => Promise<void>
+  updateWorktreeNote: (repoId: string, worktreeId: string, note: string) => Promise<void>
   collapseAllWorktrees: () => void
 }
 
@@ -296,6 +297,22 @@ export const useRepoStore = create<RepoState>((set, get) => ({
 
   collapseAllWorktrees: () => {
     set((s) => ({ collapseAllTrigger: s.collapseAllTrigger + 1 }))
+  },
+
+  updateWorktreeNote: async (repoId, worktreeId, note) => {
+    const { repos } = get()
+    const updated = repos.map((r) =>
+      r.id === repoId
+        ? {
+            ...r,
+            worktrees: r.worktrees.map((w) =>
+              w.id === worktreeId ? { ...w, note: note.trim() || undefined } : w
+            )
+          }
+        : r
+    )
+    set({ repos: updated })
+    await window.api.store.set('repos', updated)
   },
 
   renameWorktree: async (repoId, worktreeId, displayName) => {

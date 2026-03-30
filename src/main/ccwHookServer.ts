@@ -4,6 +4,9 @@ import { AddressInfo } from 'net'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
+import { logger } from './logger'
+
+const MOD = 'HookServer'
 
 let server: http.Server | null = null
 
@@ -13,30 +16,38 @@ export function startHookServer(
   if (server !== null) {
     throw new Error('ccwHookServer: server already started')
   }
+  logger.info(MOD, 'startHookServer: creating HTTP server')
   return new Promise((resolve) => {
     server = http.createServer((req, res) => {
       if (req.method === 'POST' && req.url === '/hook') {
         let body = ''
         req.on('data', (chunk) => { if (body.length < 4096) body += chunk })
         req.on('end', () => {
+          logger.debug(MOD, 'POST /hook received', { body })
           try {
             const payload = JSON.parse(body)
-            onNotification({
+            const resolved = {
               worktreeId: payload.worktreeId || undefined,
               gitPath: payload.gitPath || undefined,
               type: payload.type || 'stop',
-            })
-          } catch { /* ignore malformed */ }
+            }
+            logger.info(MOD, 'hook payload parsed, dispatching notification', resolved)
+            onNotification(resolved)
+          } catch (err) {
+            logger.warn(MOD, 'hook payload parse failed', { body, err: String(err) })
+          }
           res.writeHead(200)
           res.end('OK')
         })
       } else {
+        logger.debug(MOD, `unexpected request: ${req.method} ${req.url}`)
         res.writeHead(404)
         res.end()
       }
     })
     server.listen(0, '127.0.0.1', () => {
       const port = (server!.address() as AddressInfo).port
+      logger.info(MOD, `HTTP server listening on 127.0.0.1:${port}`)
       writeRegistry(port)
       writeCcwHookScript()
       injectHooksIntoSettings()
@@ -46,6 +57,7 @@ export function startHookServer(
 }
 
 export function closeHookServer(): void {
+  logger.info(MOD, 'closeHookServer: removing hooks and shutting down')
   removeHooksFromSettings()
   server?.close()
   server = null
