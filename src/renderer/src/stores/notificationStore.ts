@@ -17,9 +17,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: {},
 
   addNotification: (worktreeId) => {
-    // If the worktree is currently selected, don't accumulate
+    // If the worktree is currently selected AND the window is focused, don't accumulate
+    // When the window loses focus (user switched to another app), still notify
     const selected = useRepoStore.getState().selectedWorktreeId
-    if (selected === worktreeId) return
+    if (selected === worktreeId && document.hasFocus()) return
 
     // Dedupe: ignore if a notification for this worktree already arrived within 1s
     if (dedupeTimers[worktreeId]) return
