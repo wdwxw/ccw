@@ -256,11 +256,15 @@ function createWindow(): BrowserWindow {
     mainWindow.show()
   })
 
-  // Cmd+W 隐藏窗口到 Tray，不关闭应用
+  // Cmd+W：发 IPC 给渲染进程处理关闭 tab，只有 1 个 tab 时隐藏窗口到 Tray
   mainWindow.webContents.on('before-input-event', (_e, input) => {
     if (input.type === 'keyDown' && input.key === 'w' && input.meta && !input.shift && !input.alt && !input.control) {
       _e.preventDefault()
-      mainWindow.hide()
+      mainWindow.webContents.send('app:close-tab')
+    }
+    if (input.type === 'keyDown' && input.key === 't' && input.meta && !input.shift && !input.alt && !input.control) {
+      _e.preventDefault()
+      mainWindow.webContents.send('app:new-tab')
     }
   })
 
@@ -445,6 +449,70 @@ function stopTrayFlash(): void {
 
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.ccw.app')
+
+  // 覆盖 macOS 默认应用菜单，将 Cmd+W 改为向渲染进程发 IPC，而非关闭窗口
+  if (process.platform === 'darwin') {
+    const appMenu = Menu.buildFromTemplate([
+      {
+        label: app.name,
+        submenu: [
+          { role: 'about' },
+          { type: 'separator' },
+          { role: 'services' },
+          { type: 'separator' },
+          { role: 'hide' },
+          { role: 'hideOthers' },
+          { role: 'unhide' },
+          { type: 'separator' },
+          { role: 'quit' }
+        ]
+      },
+      {
+        label: 'File',
+        submenu: [
+          {
+            label: 'New Terminal Tab',
+            accelerator: 'CmdOrCtrl+T',
+            click: () => {
+              const win = getMainWindow()
+              if (win && !win.isDestroyed()) win.webContents.send('app:new-tab')
+            }
+          },
+          {
+            label: 'Close Terminal Tab',
+            accelerator: 'CmdOrCtrl+W',
+            click: () => {
+              const win = getMainWindow()
+              if (win && !win.isDestroyed()) win.webContents.send('app:close-tab')
+            }
+          }
+        ]
+      },
+      {
+        label: 'Edit',
+        submenu: [
+          { role: 'undo' },
+          { role: 'redo' },
+          { type: 'separator' },
+          { role: 'cut' },
+          { role: 'copy' },
+          { role: 'paste' },
+          { role: 'selectAll' }
+        ]
+      },
+      {
+        // 显式声明 Window 菜单，阻止 Electron 自动注入含 Cmd+W Close 的默认 Window 菜单
+        label: 'Window',
+        submenu: [
+          { role: 'minimize' },
+          { role: 'zoom' },
+          { type: 'separator' },
+          { role: 'front' }
+        ]
+      }
+    ])
+    Menu.setApplicationMenu(appMenu)
+  }
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

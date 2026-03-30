@@ -46,7 +46,17 @@ const api = {
   app: {
     openExternal: (command: string, cwd: string) =>
       ipcRenderer.invoke('app:openExternal', command, cwd),
-    detectInstalledApps: () => ipcRenderer.invoke('app:detectInstalledApps')
+    detectInstalledApps: () => ipcRenderer.invoke('app:detectInstalledApps'),
+    onCloseTab: (cb: () => void) => {
+      const handler = () => cb()
+      ipcRenderer.on('app:close-tab', handler)
+      return () => ipcRenderer.removeListener('app:close-tab', handler)
+    },
+    onNewTab: (cb: () => void) => {
+      const handler = () => cb()
+      ipcRenderer.on('app:new-tab', handler)
+      return () => ipcRenderer.removeListener('app:new-tab', handler)
+    }
   },
   fs: {
     exists: (path: string) => ipcRenderer.invoke('fs:exists', path)

@@ -396,31 +396,34 @@ export function TerminalPanel(): React.ReactElement {
         })
         return
       }
-
-      if (!e.metaKey) return
-      if (!hasSelection || !wtId) return
-
-      const group = sessionGroups.current.get(wtId)
-      if (!group) return
-
-      // Cmd+T: 新建会话
-      if (e.key === 't' || e.key === 'T') {
-        e.preventDefault()
-        handleAddSession()
-        return
-      }
-
-      // Cmd+W: 关闭当前会话（至少保留一个）
-      if ((e.key === 'w' || e.key === 'W') && group.sessions.length > 1) {
-        e.preventDefault()
-        handleCloseSession(activeSessionIndex)
-        return
-      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [hasSelection, wtId, handleAddSession, handleCloseSession, activeSessionIndex])
+  }, [])
+
+  // 通过 IPC 接收主进程转发的 Cmd+T / Cmd+W（原生菜单拦截后转发）
+  useEffect(() => {
+    const removeCloseTab = window.api.app.onCloseTab(() => {
+      if (!hasSelection || !wtId) return
+      const group = sessionGroups.current.get(wtId)
+      if (!group) return
+      if (group.sessions.length > 1) {
+        handleCloseSession(group.activeIndex)
+      }
+      // 只有 1 个 session 时什么都不做（不关闭软件）
+    })
+
+    const removeNewTab = window.api.app.onNewTab(() => {
+      if (!hasSelection || !wtId) return
+      handleAddSession()
+    })
+
+    return () => {
+      removeCloseTab()
+      removeNewTab()
+    }
+  }, [hasSelection, wtId, handleCloseSession, handleAddSession])
 
   // Handle window/container resize
   useEffect(() => {
