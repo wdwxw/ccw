@@ -78,6 +78,8 @@ export function TerminalPanel(): React.ReactElement {
   const [editingTab, setEditingTab] = useState<{ wtId: string; index: number } | null>(null)
   const [editingName, setEditingName] = useState('')
   const editInputRef = useRef<HTMLInputElement>(null)
+  // 滚动锁定：当用户手动滚动或查看历史输出时，锁定自动滚动
+  const [scrollLock, setScrollLock] = useState(false)
 
   const selectedRepoId = useRepoStore((s) => s.selectedRepoId)
   const selectedWorktreeId = useRepoStore((s) => s.selectedWorktreeId)
@@ -175,6 +177,16 @@ export function TerminalPanel(): React.ReactElement {
       })
       xterm.onResize(({ cols, rows }) => window.api.pty.resize(ptyId, cols, rows))
 
+      // 监听滚动事件，用户手动滚动时设置 scrollLock
+      const removeScrollListener = xterm.onScroll(() => {
+        const term = xtermRef.current
+        if (!term) return
+        // 如果当前 viewport 不在底部，说明用户在查看历史，锁定自动滚动
+        if (term.buffer.active.viewportY < term.buffer.active.baseY) {
+          setScrollLock(true)
+        }
+      })
+
       const removeDataListener = window.api.pty.onData(ptyId, (data) => xterm.write(data))
       const removeExitListener = window.api.pty.onExit(ptyId, () => {
         xterm.writeln('\r\n\x1b[33m终端会话已结束\x1b[0m')
@@ -183,6 +195,7 @@ export function TerminalPanel(): React.ReactElement {
       const cleanup = () => {
         removeDataListener()
         removeExitListener()
+        removeScrollListener()
       }
 
       const element = document.createElement('div')
@@ -235,7 +248,8 @@ export function TerminalPanel(): React.ReactElement {
       } catch {
         /* ignore */
       }
-      if (_wasAtBottom) { _xterm.scrollToBottom() }
+      // scrollLock 时不强制滚动到底部，让用户保持在查看历史的位置
+      if (_wasAtBottom && !scrollLock) { _xterm.scrollToBottom() }
 
       xtermRef.current = terminal.xterm
       fitAddonRef.current = terminal.fitAddon
@@ -448,6 +462,8 @@ export function TerminalPanel(): React.ReactElement {
       const term = xtermRef.current
       const fitAddon = fitAddonRef.current
       if (!fitAddon || !term) return
+      // scrollLock 时不执行自动滚动，避免干扰用户查看历史输出
+      if (scrollLock) return
       const wasAtBottom = term.buffer.active.viewportY === term.buffer.active.baseY
       try {
         fitAddon.fit()
@@ -467,7 +483,7 @@ export function TerminalPanel(): React.ReactElement {
       window.removeEventListener('resize', handleResize)
       observer.disconnect()
     }
-  }, [])
+  }, [scrollLock])
 
   const handleSendCommand = useCallback((command: string) => {
     if (currentPtyId.current) {
@@ -515,6 +531,8 @@ export function TerminalPanel(): React.ReactElement {
 
   const handleScrollToBottom = useCallback(() => {
     xtermRef.current?.scrollToBottom()
+    // 清除滚动锁定，允许自动滚动
+    setScrollLock(false)
   }, [])
 
   const handleClearNotifications = useCallback(() => {
