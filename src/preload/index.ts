@@ -46,7 +46,16 @@ const api = {
   app: {
     openExternal: (command: string, cwd: string) =>
       ipcRenderer.invoke('app:openExternal', command, cwd),
-    detectInstalledApps: () => ipcRenderer.invoke('app:detectInstalledApps')
+    detectInstalledApps: () => ipcRenderer.invoke('app:detectInstalledApps'),
+    getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
+    checkUpdate: (): Promise<{
+      hasUpdate?: boolean
+      latestVersion?: string
+      currentVersion?: string
+      downloadUrl?: string
+      error?: string
+    }> => ipcRenderer.invoke('app:checkUpdate'),
+    openUrl: (url: string) => ipcRenderer.invoke('app:openUrl', url),
   },
   fs: {
     exists: (path: string) => ipcRenderer.invoke('fs:exists', path)

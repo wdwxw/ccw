@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, ArrowLeft, Save, Check } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, Save, Check, RefreshCw, ExternalLink } from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useToastStore } from '../../stores/toastStore'
 import type { ExternalApp, QuickButton } from '../../types'
 import { generateId } from '../../utils/helpers'
 type FontScale = 1 | 1.25 | 1.5
+
+type UpdateStatus = 'idle' | 'checking' | 'latest' | 'available' | 'error'
+
+interface UpdateResult {
+  latestVersion: string
+  downloadUrl: string
+}
 
 const FONT_SCALE_OPTIONS: { label: string; value: FontScale }[] = [
   { label: '100%', value: 1 },
@@ -31,6 +38,10 @@ export function SettingsPage(): React.ReactElement {
   const [apps, setApps] = useState<ExternalApp[]>(externalApps)
   const [buttons, setButtons] = useState<QuickButton[]>(quickButtons)
   const [logPath, setLogPath] = useState<string>('')
+  const [currentVersion, setCurrentVersion] = useState<string>('')
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle')
+  const [updateResult, setUpdateResult] = useState<UpdateResult | null>(null)
+  const [updateError, setUpdateError] = useState<string>('')
 
   useEffect(() => {
     setApps(externalApps)
@@ -42,6 +53,7 @@ export function SettingsPage(): React.ReactElement {
 
   useEffect(() => {
     window.api.logger.getLogPath().then(setLogPath)
+    window.api.app.getVersion().then(setCurrentVersion)
   }, [])
 
   const handleAddApp = (): void => {
@@ -72,8 +84,23 @@ export function SettingsPage(): React.ReactElement {
     setButtons(buttons.map((b) => (b.id === id ? { ...b, [field]: value } : b)))
   }
 
-  const handleSave = async (): Promise<void> => {
-    const validApps = apps.filter((a) => a.name.trim() && a.command.trim())
+  const handleCheckUpdate = async (): Promise<void> => {
+    setUpdateStatus('checking')
+    setUpdateResult(null)
+    setUpdateError('')
+    const result = await window.api.app.checkUpdate()
+    if (result.error) {
+      setUpdateStatus('error')
+      setUpdateError(result.error)
+    } else if (result.hasUpdate) {
+      setUpdateStatus('available')
+      setUpdateResult({ latestVersion: result.latestVersion!, downloadUrl: result.downloadUrl! })
+    } else {
+      setUpdateStatus('latest')
+    }
+  }
+
+  const handleSave = async (): Promise<void> => {    const validApps = apps.filter((a) => a.name.trim() && a.command.trim())
     if (validApps.length === 0) {
       addToast('warning', '请至少配置一个有效的外部应用')
       return
@@ -357,6 +384,50 @@ export function SettingsPage(): React.ReactElement {
           {logPath && (
             <p className="mt-2 break-all font-mono text-xs text-text-muted">{logPath}</p>
           )}
+        </section>
+
+        {/* About */}
+        <section className="mb-8">
+          <h2 className="mb-3 text-sm font-medium text-text-primary">关于</h2>
+          <div className="rounded-lg border border-border-muted bg-bg-secondary px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-text-primary">CCW</span>
+                <span className="rounded bg-bg-elevated px-1.5 py-0.5 font-mono text-xs text-text-muted">
+                  v{currentVersion}
+                </span>
+              </div>
+              <button
+                onClick={handleCheckUpdate}
+                disabled={updateStatus === 'checking'}
+                className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw size={12} className={updateStatus === 'checking' ? 'animate-spin' : ''} />
+                {updateStatus === 'checking' ? '检查中...' : '检查更新'}
+              </button>
+            </div>
+
+            {updateStatus === 'latest' && (
+              <p className="mt-2 text-xs text-success">已是最新版本</p>
+            )}
+            {updateStatus === 'error' && (
+              <p className="mt-2 text-xs text-danger">{updateError}</p>
+            )}
+            {updateStatus === 'available' && updateResult && (
+              <div className="mt-2 flex items-center gap-2">
+                <p className="text-xs text-warning">
+                  发现新版本 <span className="font-mono">v{updateResult.latestVersion}</span>
+                </p>
+                <button
+                  onClick={() => window.api.app.openUrl(updateResult.downloadUrl)}
+                  className="flex items-center gap-1 text-xs text-accent transition-colors hover:underline"
+                >
+                  <ExternalLink size={11} />
+                  前往下载
+                </button>
+              </div>
+            )}
+          </div>
         </section>
 
         {/* Save */}
