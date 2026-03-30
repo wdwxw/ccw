@@ -6,6 +6,7 @@ import simpleGit from 'simple-git'
 import * as fs from 'fs'
 import { startHookServer, closeHookServer } from './ccwHookServer'
 import * as os from 'os'
+import { logger } from './logger'
 
 let hookServerPort = 0
 
@@ -453,12 +454,23 @@ app.whenReady().then(async () => {
   }
 
   // Start CCW hook server for Claude Code notifications
+  const debugLog = store.get('debugLog') as boolean | undefined
+  logger.setEnabled(debugLog === true)
+  logger.info('Main', 'app ready, starting hook server')
+
   hookServerPort = await startHookServer(({ worktreeId, gitPath, type }) => {
     const resolvedId = worktreeId || (gitPath ? resolveWorktreeByPath(gitPath) : undefined)
-    if (!resolvedId) return
+    logger.info('Main', 'notification received', { worktreeId, gitPath, type, resolvedId })
+    if (!resolvedId) {
+      logger.warn('Main', 'notification dropped: could not resolve worktreeId', { worktreeId, gitPath })
+      return
+    }
     const win = getMainWindow()
     if (win && !win.isDestroyed()) {
       win.webContents.send('ccw:notification', { worktreeId: resolvedId, type })
+      logger.info('Main', 'ccw:notification sent to renderer', { worktreeId: resolvedId, type })
+    } else {
+      logger.warn('Main', 'notification dropped: main window not available')
     }
   })
 
@@ -824,5 +836,14 @@ function registerIpcHandlers(): void {
   ipcMain.handle('path:dirname', (_e, filePath: string) => {
     const { dirname } = require('path')
     return dirname(filePath)
+  })
+
+  ipcMain.handle('logger:setEnabled', (_e, enabled: boolean) => {
+    logger.setEnabled(enabled)
+    logger.info('Main', `debug logging ${enabled ? 'enabled' : 'disabled'}`)
+  })
+
+  ipcMain.handle('logger:getLogPath', () => {
+    return logger.getLogPath()
   })
 }

@@ -4,7 +4,6 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { useToastStore } from '../../stores/toastStore'
 import type { ExternalApp, QuickButton } from '../../types'
 import { generateId } from '../../utils/helpers'
-
 type FontScale = 1 | 1.25 | 1.5
 
 const FONT_SCALE_OPTIONS: { label: string; value: FontScale }[] = [
@@ -25,10 +24,13 @@ export function SettingsPage(): React.ReactElement {
   const setFontScale = useSettingsStore((s) => s.setFontScale)
   const showTrayIcon = useSettingsStore((s) => s.showTrayIcon)
   const setShowTrayIcon = useSettingsStore((s) => s.setShowTrayIcon)
+  const debugLog = useSettingsStore((s) => s.debugLog)
+  const setDebugLog = useSettingsStore((s) => s.setDebugLog)
   const addToast = useToastStore((s) => s.addToast)
 
   const [apps, setApps] = useState<ExternalApp[]>(externalApps)
   const [buttons, setButtons] = useState<QuickButton[]>(quickButtons)
+  const [logPath, setLogPath] = useState<string>('')
 
   useEffect(() => {
     setApps(externalApps)
@@ -37,6 +39,10 @@ export function SettingsPage(): React.ReactElement {
   useEffect(() => {
     setButtons(quickButtons)
   }, [quickButtons])
+
+  useEffect(() => {
+    window.api.logger.getLogPath().then(setLogPath)
+  }, [])
 
   const handleAddApp = (): void => {
     setApps([...apps, { id: generateId(), name: '', command: '', icon: 'terminal' }])
@@ -325,6 +331,32 @@ export function SettingsPage(): React.ReactElement {
               </kbd>
             </div>
           </div>
+        </section>
+
+        {/* Debug Log */}
+        <section className="mb-8">
+          <h2 className="mb-3 text-sm font-medium text-text-primary">调试日志</h2>
+          <div className="flex items-center justify-between rounded-lg border border-border-muted bg-bg-secondary px-4 py-3">
+            <div>
+              <p className="text-xs font-medium text-text-primary">记录调试日志</p>
+              <p className="mt-0.5 text-xs text-text-muted">开启后将 Hook 通知等关键事件写入日志文件，方便排查问题</p>
+            </div>
+            <button
+              onClick={() => setDebugLog(!debugLog)}
+              className={`relative h-5 w-9 flex-shrink-0 overflow-hidden rounded-full transition-colors ${
+                debugLog ? 'bg-accent' : 'bg-bg-elevated'
+              }`}
+            >
+              <span
+                className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                  debugLog ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+          {logPath && (
+            <p className="mt-2 break-all font-mono text-xs text-text-muted">{logPath}</p>
+          )}
         </section>
 
         {/* Save */}

@@ -12,6 +12,7 @@ interface SettingsState {
   theme: Theme
   fontScale: FontScale
   showTrayIcon: boolean
+  debugLog: boolean
 
   loadSettings: () => Promise<void>
   setLastExternalApp: (appId: string) => Promise<void>
@@ -20,6 +21,7 @@ interface SettingsState {
   setTheme: (theme: Theme) => Promise<void>
   setFontScale: (scale: FontScale) => Promise<void>
   setShowTrayIcon: (visible: boolean) => Promise<void>
+  setDebugLog: (enabled: boolean) => Promise<void>
   toggleSettings: () => void
 }
 
@@ -31,6 +33,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   theme: 'dazi',
   fontScale: 1,
   showTrayIcon: true,
+  debugLog: false,
 
   loadSettings: async () => {
     const lastApp = (await window.api.store.get('lastExternalApp')) as string | undefined
@@ -39,6 +42,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const theme = (await window.api.store.get('theme')) as Theme | undefined
     const fontScale = (await window.api.store.get('fontScale')) as FontScale | undefined
     const showTrayIcon = (await window.api.store.get('showTrayIcon')) as boolean | undefined
+    const debugLog = (await window.api.store.get('debugLog')) as boolean | undefined
     if (lastApp) set({ lastExternalApp: lastApp })
     if (apps && apps.length > 0) {
       set({ externalApps: apps })
@@ -54,6 +58,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
     if (showTrayIcon !== undefined) {
       set({ showTrayIcon })
+    }
+    if (debugLog !== undefined) {
+      set({ debugLog })
     }
   },
 
@@ -86,6 +93,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ showTrayIcon: visible })
     await window.api.store.set('showTrayIcon', visible)
     await window.api.tray.setVisible(visible)
+  },
+
+  setDebugLog: async (enabled) => {
+    set({ debugLog: enabled })
+    await window.api.store.set('debugLog', enabled)
+    await window.api.logger.setEnabled(enabled)
   },
 
   toggleSettings: () => {

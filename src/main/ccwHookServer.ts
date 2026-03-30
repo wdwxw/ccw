@@ -71,10 +71,14 @@ function writeRegistry(port: number): void {
   const registryPath = path.join(os.homedir(), '.ccw', 'registry.json')
   const content = JSON.stringify({ port, pid: process.pid }, null, 2)
   try {
-    if (fs.readFileSync(registryPath, 'utf-8') === content) return
+    if (fs.readFileSync(registryPath, 'utf-8') === content) {
+      logger.debug(MOD, 'writeRegistry: content unchanged, skipped')
+      return
+    }
   } catch { /* file doesn't exist yet */ }
   fs.mkdirSync(path.dirname(registryPath), { recursive: true })
   fs.writeFileSync(registryPath, content, 'utf-8')
+  logger.info(MOD, 'writeRegistry: written', { port, pid: process.pid })
 }
 
 // ---------------------------------------------------------------------------
@@ -131,10 +135,14 @@ curl -s -X POST "http://127.0.0.1:$PORT/hook" \\
 `
   fs.mkdirSync(path.dirname(ccwHookPath), { recursive: true })
   try {
-    if (fs.readFileSync(ccwHookPath, 'utf-8') === content) return
+    if (fs.readFileSync(ccwHookPath, 'utf-8') === content) {
+      logger.debug(MOD, 'writeCcwHookScript: content unchanged, skipped')
+      return
+    }
   } catch { /* not exists */ }
   fs.writeFileSync(ccwHookPath, content, 'utf-8')
   fs.chmodSync(ccwHookPath, 0o755)
+  logger.info(MOD, 'writeCcwHookScript: written', { path: ccwHookPath })
 }
 
 // ---------------------------------------------------------------------------
@@ -203,18 +211,25 @@ export function injectHooksIntoSettings(): void {
     )
     if (!alreadyPresent) {
       hooks[event] = [...existing, ccwHookEntry(event)]
+      logger.info(MOD, `injectHooksIntoSettings: injected ${event} hook`)
+    } else {
+      logger.debug(MOD, `injectHooksIntoSettings: ${event} hook already present`)
     }
   }
 
   settings.hooks = hooks
   writeSettings(settings)
+  logger.info(MOD, 'injectHooksIntoSettings: settings.json written')
 }
 
 export function removeHooksFromSettings(): void {
   try {
     const settings = readSettings()
     const hooks = settings.hooks as Record<string, unknown[]> | undefined
-    if (!hooks) return
+    if (!hooks) {
+      logger.debug(MOD, 'removeHooksFromSettings: no hooks section found')
+      return
+    }
 
     for (const event of Object.keys(hooks)) {
       hooks[event] = (hooks[event] as object[]).filter(
@@ -225,5 +240,8 @@ export function removeHooksFromSettings(): void {
 
     if (Object.keys(hooks).length === 0) delete settings.hooks
     writeSettings(settings)
-  } catch { /* ignore if file unreadable on quit */ }
+    logger.info(MOD, 'removeHooksFromSettings: CCW hooks removed from settings.json')
+  } catch (err) {
+    logger.warn(MOD, 'removeHooksFromSettings: failed', { err: String(err) })
+  }
 }

@@ -65,6 +65,10 @@ const api = {
     setFlashing: (flashing: boolean) => ipcRenderer.invoke('tray:setFlashing', flashing),
     setVisible: (visible: boolean) => ipcRenderer.invoke('tray:setVisible', visible),
   },
+  logger: {
+    setEnabled: (enabled: boolean) => ipcRenderer.invoke('logger:setEnabled', enabled),
+    getLogPath: (): Promise<string> => ipcRenderer.invoke('logger:getLogPath'),
+  },
 }
 
 contextBridge.exposeInMainWorld('api', api)

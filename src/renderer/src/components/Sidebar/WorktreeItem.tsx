@@ -13,19 +13,24 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
   const [showConfirm, setShowConfirm] = useState(false)
   const [tooltipVisible, setTooltipVisible] = useState(false)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
+
+  // 分支名编辑（铅笔按钮触发）
   const [isRenaming, setIsRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState('')
+
+  // 备注编辑（双击备注区域触发）
+  const [isEditingNote, setIsEditingNote] = useState(false)
   const [noteValue, setNoteValue] = useState('')
 
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
   const noteInputRef = useRef<HTMLInputElement>(null)
 
-  const selectedWorktreeId   = useRepoStore((s) => s.selectedWorktreeId)
-  const selectWorktree       = useRepoStore((s) => s.selectWorktree)
-  const archiveWorktree      = useRepoStore((s) => s.archiveWorktree)
-  const renameWorktree       = useRepoStore((s) => s.renameWorktree)
-  const updateWorktreeNote   = useRepoStore((s) => s.updateWorktreeNote)
+  const selectedWorktreeId = useRepoStore((s) => s.selectedWorktreeId)
+  const selectWorktree     = useRepoStore((s) => s.selectWorktree)
+  const archiveWorktree    = useRepoStore((s) => s.archiveWorktree)
+  const renameWorktree     = useRepoStore((s) => s.renameWorktree)
+  const updateWorktreeNote = useRepoStore((s) => s.updateWorktreeNote)
 
   const count = useNotificationStore((s) => s.notifications[worktree.id] ?? 0)
   const clearNotification = useNotificationStore((s) => s.clearNotification)
@@ -33,6 +38,7 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
   const isSelected = selectedWorktreeId === worktree.id
   const isArchived = worktree.status === 'archived'
   const dirName    = worktree.path.split('/').pop() || worktree.branch
+  const isEditing  = isRenaming || isEditingNote
 
   useEffect(() => {
     if (isRenaming && renameInputRef.current) {
@@ -40,6 +46,13 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
       renameInputRef.current.select()
     }
   }, [isRenaming])
+
+  useEffect(() => {
+    if (isEditingNote && noteInputRef.current) {
+      noteInputRef.current.focus()
+      noteInputRef.current.select()
+    }
+  }, [isEditingNote])
 
   function handleMouseEnter(e: React.MouseEvent<HTMLDivElement>): void {
     if (!isSelected && !isArchived) e.currentTarget.style.background = 'var(--hv)'
@@ -61,10 +74,10 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
     }
   }
 
+  // 铅笔按钮：只编辑分支名
   function startRename(e: React.MouseEvent): void {
     e.stopPropagation()
     setRenameValue(worktree.displayName || worktree.branch)
-    setNoteValue(worktree.note || '')
     setIsRenaming(true)
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
     setTooltipVisible(false)
@@ -72,8 +85,22 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
 
   function commitRename(): void {
     renameWorktree(repoId, worktree.id, renameValue)
-    updateWorktreeNote(repoId, worktree.id, noteValue)
     setIsRenaming(false)
+  }
+
+  // 双击备注区域：只编辑备注
+  function startEditNote(e: React.MouseEvent): void {
+    e.stopPropagation()
+    if (isArchived) return
+    setNoteValue(worktree.note || '')
+    setIsEditingNote(true)
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+    setTooltipVisible(false)
+  }
+
+  function commitNote(): void {
+    updateWorktreeNote(repoId, worktree.id, noteValue)
+    setIsEditingNote(false)
   }
 
   return (
@@ -91,7 +118,7 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
         onMouseLeave={handleMouseLeave}
         onMouseMove={handleMouseMove}
         onClick={() => {
-          if (!isArchived && !isRenaming) {
+          if (!isArchived && !isEditing) {
             selectWorktree(repoId, worktree.id)
             if (count > 0) clearNotification(worktree.id)
           }
@@ -114,66 +141,69 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
 
         {/* ws-info */}
         <div style={{ flex: 1, minWidth: 0 }}>
+          {/* 分支名：编辑模式显示 input，否则显示文字 */}
           {isRenaming ? (
-            <div className="flex flex-col gap-[4px]">
-              <input
-                ref={renameInputRef}
-                className="w-full rounded bg-transparent text-[12px] leading-[1.3] outline-none"
-                style={{
-                  color: 'var(--t1)',
-                  border: '1px solid var(--color-accent)',
-                  padding: '1px 4px',
-                  background: 'var(--color-bg-elevated)',
-                }}
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') { noteInputRef.current?.focus() }
-                  if (e.key === 'Escape') setIsRenaming(false)
-                }}
-                onBlur={(e) => {
-                  // 如果焦点转移到了备注 input，不提交（等备注 input 的 blur）
-                  if (e.relatedTarget === noteInputRef.current) return
-                  commitRename()
-                }}
-                onClick={(e) => e.stopPropagation()}
-              />
-              <input
-                ref={noteInputRef}
-                className="w-full rounded bg-transparent text-[11px] leading-[1.3] outline-none"
-                style={{
-                  color: 'var(--t2)',
-                  border: '1px solid var(--color-border)',
-                  padding: '1px 4px',
-                  background: 'var(--color-bg-elevated)',
-                }}
-                placeholder="Add note"
-                value={noteValue}
-                onChange={(e) => setNoteValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') commitRename()
-                  if (e.key === 'Escape') setIsRenaming(false)
-                }}
-                onBlur={commitRename}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
+            <input
+              ref={renameInputRef}
+              className="w-full rounded bg-transparent text-[12px] leading-[1.3] outline-none"
+              style={{
+                color: 'var(--t1)',
+                border: '1px solid var(--color-accent)',
+                padding: '1px 4px',
+                background: 'var(--color-bg-elevated)',
+              }}
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitRename()
+                if (e.key === 'Escape') setIsRenaming(false)
+              }}
+              onBlur={commitRename}
+              onClick={(e) => e.stopPropagation()}
+            />
           ) : (
-            <>
-              <div
-                className="truncate text-[14px] leading-[1.3]"
-                style={{
-                  color: isSelected ? 'var(--t1)' : 'var(--t2)',
-                  textDecoration: isArchived ? 'line-through' : undefined,
-                  fontWeight: 500,
-                }}
-              >
-                {worktree.branch}
-              </div>
-              <div className="truncate text-[12px] mt-[1px]" style={{ color: worktree.note ? 'var(--t4)' : 'var(--color-text-muted)' }}>
-                {worktree.note || 'Add note'}
-              </div>
-            </>
+            <div
+              className="truncate text-[14px] leading-[1.3]"
+              style={{
+                color: isSelected ? 'var(--t1)' : 'var(--t2)',
+                textDecoration: isArchived ? 'line-through' : undefined,
+                fontWeight: 500,
+              }}
+              onDoubleClick={isArchived ? undefined : startRename}
+            >
+              {worktree.branch}
+            </div>
+          )}
+
+          {/* 备注：编辑模式显示 input，否则显示文字（双击触发编辑） */}
+          {isEditingNote ? (
+            <input
+              ref={noteInputRef}
+              className="w-full rounded bg-transparent text-[11px] leading-[1.3] outline-none mt-[2px]"
+              style={{
+                color: 'var(--t2)',
+                border: '1px solid var(--color-warning)',
+                padding: '1px 4px',
+                background: 'var(--color-bg-elevated)',
+              }}
+              placeholder="Add note"
+              value={noteValue}
+              onChange={(e) => setNoteValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitNote()
+                if (e.key === 'Escape') setIsEditingNote(false)
+              }}
+              onBlur={commitNote}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <div
+              className="truncate text-[12px] mt-[1px]"
+              style={{ color: worktree.note ? 'var(--t4)' : 'var(--color-text-muted)' }}
+              onDoubleClick={startEditNote}
+            >
+              {worktree.note || 'Add note'}
+            </div>
           )}
         </div>
 
@@ -200,7 +230,7 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
         )}
 
         {/* Action buttons on hover */}
-        {!isArchived && !isRenaming && (
+        {!isArchived && !isEditing && (
           <div className="invisible flex items-center gap-[2px] group-hover:visible" style={{ flexShrink: 0 }}>
             {/* Rename button */}
             <button
@@ -248,7 +278,7 @@ export function WorktreeItem({ worktree, repoId }: WorktreeItemProps): React.Rea
       </div>
 
       {/* Tooltip */}
-      {tooltipVisible && !isRenaming && (
+      {tooltipVisible && !isEditing && (
         <div
           style={{
             position: 'fixed',
