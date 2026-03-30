@@ -521,6 +521,79 @@ export function TerminalPanel(): React.ReactElement {
     xtermRef.current?.focus()
   }, [])
 
+  // 将图片路径写入 PTY（供拖拽和粘贴共用）
+  const writeImagePathToPty = useCallback(async (base64Data: string, ext: string) => {
+    if (!currentPtyId.current) return
+    const result = await window.api.image.saveTempFile(base64Data, ext)
+    if (result.success && result.path) {
+      window.api.pty.write(currentPtyId.current, result.path)
+    }
+  }, [])
+
+  // 拖拽图片到终端区域
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    const hasImage = Array.from(e.dataTransfer.items).some(
+      (item) => item.kind === 'file' && item.type.startsWith('image/')
+    )
+    if (hasImage) {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'copy'
+    }
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'))
+    if (files.length === 0) return
+    e.preventDefault()
+    const file = files[0]
+    // Electron 渲染进程中 File 对象有非标准的 .path 属性（本地绝对路径）
+    const localPath = (file as any).path as string | undefined
+    if (localPath) {
+      if (currentPtyId.current) {
+        window.api.pty.write(currentPtyId.current, localPath)
+      }
+      xtermRef.current?.focus()
+      return
+    }
+    // 回退：读取 ArrayBuffer 转 base64
+    const ext = file.name.split('.').pop() || 'png'
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      const base64 = dataUrl.split(',')[1]
+      writeImagePathToPty(base64, ext)
+    }
+    reader.readAsDataURL(file)
+    xtermRef.current?.focus()
+  }, [writeImagePathToPty])
+
+  // Cmd+V 粘贴图片（剪贴板中有图片时优先处理，否则交给 xterm 默认行为）
+  useEffect(() => {
+    const handlePaste = async (e: ClipboardEvent) => {
+      if (!currentPtyId.current) return
+      const items = e.clipboardData?.items
+      if (!items) return
+      const imageItem = Array.from(items).find(
+        (item) => item.kind === 'file' && item.type.startsWith('image/')
+      )
+      if (!imageItem) return
+      e.preventDefault()
+      e.stopPropagation()
+      const file = imageItem.getAsFile()
+      if (!file) return
+      const ext = file.type.split('/')[1] || 'png'
+      const reader = new FileReader()
+      reader.onload = () => {
+        const dataUrl = reader.result as string
+        const base64 = dataUrl.split(',')[1]
+        writeImagePathToPty(base64, ext)
+      }
+      reader.readAsDataURL(file)
+    }
+    window.addEventListener('paste', handlePaste, true)
+    return () => window.removeEventListener('paste', handlePaste, true)
+  }, [writeImagePathToPty])
+
   useEffect(() => {
     if (!contextMenu) return
     const close = () => setContextMenu(null)
@@ -721,7 +794,7 @@ export function TerminalPanel(): React.ReactElement {
       {/* Terminal body */}
       <div className="relative flex-1 overflow-hidden">
         {hasSelection ? (
-          <div ref={containerRef} className="relative h-full w-full" style={{ background: '#0f0e0c' }} onContextMenu={handleContextMenu} onMouseDown={() => { lastFocusArea.current = 'terminal' }} />
+          <div ref={containerRef} className="relative h-full w-full" style={{ background: '#0f0e0c' }} onContextMenu={handleContextMenu} onMouseDown={() => { lastFocusArea.current = 'terminal' }} onDragOver={handleDragOver} onDrop={handleDrop} />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3">
             <svg width="40" height="40" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"

@@ -859,4 +859,18 @@ function registerIpcHandlers(): void {
   ipcMain.handle('logger:getLogPath', () => {
     return logger.getLogPath()
   })
+
+  // ── Image ──
+  ipcMain.handle('image:saveTempFile', (_e, base64Data: string, ext: string) => {
+    try {
+      const { randomUUID } = require('crypto') as typeof import('crypto')
+      const safeExt = /^[a-z0-9]+$/i.test(ext) ? ext : 'png'
+      const tmpPath = join(os.tmpdir(), `ccw-img-${randomUUID()}.${safeExt}`)
+      const buf = Buffer.from(base64Data, 'base64')
+      fs.writeFileSync(tmpPath, buf)
+      return { success: true, path: tmpPath }
+    } catch (err: any) {
+      return { success: false, error: err.message }
+    }
+  })
 }

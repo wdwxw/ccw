@@ -69,6 +69,10 @@ const api = {
     setEnabled: (enabled: boolean) => ipcRenderer.invoke('logger:setEnabled', enabled),
     getLogPath: (): Promise<string> => ipcRenderer.invoke('logger:getLogPath'),
   },
+  image: {
+    saveTempFile: (base64Data: string, ext: string): Promise<{ success: boolean; path?: string; error?: string }> =>
+      ipcRenderer.invoke('image:saveTempFile', base64Data, ext),
+  },
 }
 
 contextBridge.exposeInMainWorld('api', api)
