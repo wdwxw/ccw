@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { Send, X } from 'lucide-react'
+import { Send, X, ChevronUp, ChevronDown } from 'lucide-react'
 
 export interface CommandInputHandle {
   insertAtCursor: (text: string) => void
@@ -11,9 +11,18 @@ interface CommandInputProps {
   onFocusTextarea?: () => void
 }
 
+// 历史记录存储（模块级别，内存存储）
+const commandHistory: string[] = []
+const MAX_HISTORY = 10
+
+// 未提交内容草稿（模块级别，内存存储）
+let draftContent = ''
+
 export const CommandInput = forwardRef<CommandInputHandle, CommandInputProps>(
   ({ onSend, onClose, onFocusTextarea }, ref) => {
     const [command, setCommand] = useState('')
+    const [historyIndex, setHistoryIndex] = useState(-1) // -1 表示正在编辑新内容
+    const [tempContent, setTempContent] = useState('') // 浏览历史时临时保存当前编辑内容
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     useImperativeHandle(ref, () => ({
@@ -24,6 +33,10 @@ export const CommandInput = forwardRef<CommandInputHandle, CommandInputProps>(
         const end = el.selectionEnd ?? command.length
         const newValue = command.slice(0, start) + text + command.slice(end)
         setCommand(newValue)
+        // 编辑时重置历史索引
+        if (historyIndex !== -1) {
+          setHistoryIndex(-1)
+        }
         requestAnimationFrame(() => {
           if (textareaRef.current) {
             textareaRef.current.selectionStart = start + text.length
@@ -34,7 +47,26 @@ export const CommandInput = forwardRef<CommandInputHandle, CommandInputProps>(
       },
     }))
 
-    useEffect(() => { textareaRef.current?.focus() }, [])
+    // 组件挂载时恢复草稿内容
+    useEffect(() => {
+      if (draftContent) {
+        setCommand(draftContent)
+        draftContent = '' // 恢复后清空草稿
+      }
+      textareaRef.current?.focus()
+    }, [])
+
+    // 组件卸载时保存未提交内容
+    useEffect(() => {
+      return () => {
+        const currentCommand = command.trim()
+        if (currentCommand) {
+          draftContent = currentCommand
+        } else {
+          draftContent = ''
+        }
+      }
+    }, [command])
 
     useEffect(() => {
       const handleEsc = (e: KeyboardEvent): void => { if (e.key === 'Escape') onClose() }
@@ -52,10 +84,62 @@ export const CommandInput = forwardRef<CommandInputHandle, CommandInputProps>(
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
-        onSend(command)
-        setCommand('')
+        handleSend()
       }
     }
+
+    const handleSend = (): void => {
+      const trimmed = command.trim()
+      if (!trimmed) return
+
+      // 添加到历史记录（去重：如果与最新一条相同则不添加）
+      if (commandHistory.length === 0 || commandHistory[commandHistory.length - 1] !== trimmed) {
+        commandHistory.push(trimmed)
+        // 限制最多10条
+        if (commandHistory.length > MAX_HISTORY) {
+          commandHistory.shift()
+        }
+      }
+
+      // 发送命令
+      onSend(trimmed)
+
+      // 重置状态
+      setCommand('')
+      setHistoryIndex(-1)
+      setTempContent('')
+    }
+
+    const handleHistoryUp = (): void => {
+      if (commandHistory.length === 0) return
+
+      if (historyIndex === -1) {
+        // 保存当前编辑内容
+        setTempContent(command)
+      }
+
+      const newIndex = Math.min(historyIndex + 1, commandHistory.length - 1)
+      setHistoryIndex(newIndex)
+      // 从历史数组末尾开始取（最新的在前）
+      setCommand(commandHistory[commandHistory.length - 1 - newIndex])
+    }
+
+    const handleHistoryDown = (): void => {
+      if (historyIndex === -1) return
+
+      const newIndex = historyIndex - 1
+      setHistoryIndex(newIndex)
+
+      if (newIndex === -1) {
+        // 回到当前编辑内容
+        setCommand(tempContent)
+      } else {
+        setCommand(commandHistory[commandHistory.length - 1 - newIndex])
+      }
+    }
+
+    const canGoUp = commandHistory.length > 0 && historyIndex < commandHistory.length - 1
+    const canGoDown = historyIndex > -1
 
     return (
       /* input-zone */
@@ -113,6 +197,55 @@ export const CommandInput = forwardRef<CommandInputHandle, CommandInputProps>(
               borderTop: '0.5px solid var(--bs)',
             }}
           >
+            {/* 历史记录导航按钮 */}
+            <div className="flex items-center gap-[2px]">
+              <button
+                onClick={handleHistoryUp}
+                disabled={!canGoUp}
+                className="flex items-center justify-center rounded p-[3px] transition-colors duration-100"
+                style={{
+                  color: canGoUp ? 'var(--t3)' : 'var(--t4)',
+                  opacity: canGoUp ? 1 : 0.4,
+                  cursor: canGoUp ? 'pointer' : 'not-allowed',
+                }}
+                onMouseEnter={(e) => {
+                  if (canGoUp) {
+                    e.currentTarget.style.color = 'var(--t2)'
+                    e.currentTarget.style.background = 'var(--hv)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = canGoUp ? 'var(--t3)' : 'var(--t4)'
+                  e.currentTarget.style.background = 'transparent'
+                }}
+                title="上一条历史"
+              >
+                <ChevronUp size={14} />
+              </button>
+              <button
+                onClick={handleHistoryDown}
+                disabled={!canGoDown}
+                className="flex items-center justify-center rounded p-[3px] transition-colors duration-100"
+                style={{
+                  color: canGoDown ? 'var(--t3)' : 'var(--t4)',
+                  opacity: canGoDown ? 1 : 0.4,
+                  cursor: canGoDown ? 'pointer' : 'not-allowed',
+                }}
+                onMouseEnter={(e) => {
+                  if (canGoDown) {
+                    e.currentTarget.style.color = 'var(--t2)'
+                    e.currentTarget.style.background = 'var(--hv)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = canGoDown ? 'var(--t3)' : 'var(--t4)'
+                  e.currentTarget.style.background = 'transparent'
+                }}
+                title="下一条历史"
+              >
+                <ChevronDown size={14} />
+              </button>
+            </div>
             <span className="text-[11px]" style={{ color: 'var(--t4)' }}>
               Enter 发送 · Shift+Enter 换行
             </span>
@@ -135,7 +268,7 @@ export const CommandInput = forwardRef<CommandInputHandle, CommandInputProps>(
             </button>
             {/* send-btn — matches reference */}
             <button
-              onClick={() => { if (command.trim()) { onSend(command); setCommand('') } }}
+              onClick={handleSend}
               className="flex items-center justify-center rounded-[6px] p-[5px] transition-colors duration-100"
               style={{
                 background: 'var(--hv)',
