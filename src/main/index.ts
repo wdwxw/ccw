@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, Tray, nativeImage, Menu, nativeTheme, net } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, Tray, nativeImage, Menu, nativeTheme, net, screen, desktopCapturer } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import Store from 'electron-store'
@@ -377,13 +377,55 @@ function buildTrayIconPNG(bgR: number, bgG: number, bgB: number): Buffer {
   return _assemblePNG(rgba, SIZE)
 }
 
-function buildTrayIconIdle(_isDark: boolean): Electron.NativeImage {
-  // 深色背景 (#1e1e1e)，CCW 镂空成浅色
-  return nativeImage.createFromBuffer(buildTrayIconPNG(30, 30, 30), { scaleFactor: 2 })
+// 采样 Menu Bar 区域背景色亮度，返回 true 表示浅色背景，false 表示深色背景
+async function sampleMenuBarIsLight(): Promise<boolean> {
+  try {
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: 1, height: 1 }
+    })
+    if (sources.length === 0) return false
+
+    const thumbnail = sources[0].thumbnail
+    if (thumbnail.isEmpty()) return false
+
+    // 缩略图只有 1x1 像素，代表屏幕顶部区域的平均颜色
+    const bitmap = thumbnail.toBitmap()
+    // BGRA 格式，取第一个像素
+    const b = bitmap[0]
+    const g = bitmap[1]
+    const r = bitmap[2]
+    const brightness = (r + g + b) / 3 / 255
+    // 如果亮度 > 0.5 认为是非深色菜单栏
+    return brightness > 0.5
+  } catch (e) {
+    console.error('[CCW] sampleMenuBarBrightness failed:', e)
+    return false
+  }
+}
+
+function buildTrayIconIdle(isDark: boolean): Electron.NativeImage {
+  // 根据系统主题动态切换：
+  // - 浅色系统主题 (isDark=false) → 深色背景 + 浅色 CCW 镂空
+  // - 深色系统主题 (isDark=true)  → 浅色背景 + 深色 CCW 镂空
+  if (isDark) {
+    // 深色菜单栏 → 浅色背景 (贴近白色)，CCW 镂空成深色
+    return nativeImage.createFromBuffer(buildTrayIconPNG(210, 210, 210), { scaleFactor: 2 })
+  } else {
+    // 浅色菜单栏 → 深色背景 (贴近黑色)
+    return nativeImage.createFromBuffer(buildTrayIconPNG(30, 30, 30), { scaleFactor: 2 })
+  }
 }
 
 function buildTrayIconActive(): Electron.NativeImage {
   return nativeImage.createFromBuffer(buildTrayIconPNG(26, 86, 219), { scaleFactor: 2 }) // #1A56DB
+}
+
+// 异步更新托盘图标（基于 Menu Bar 实际背景亮度）
+async function updateTrayIconByMenuBar(): Promise<void> {
+  if (!tray || flashInterval) return
+  const isLight = await sampleMenuBarIsLight()
+  tray.setImage(buildTrayIconIdle(!isLight))
 }
 
 function createTray(): void {
@@ -411,9 +453,16 @@ function createTray(): void {
 
   // 系统深/浅色切换时更新图标
   nativeTheme.on('updated', () => {
-    if (!tray || flashInterval) return
-    tray.setImage(buildTrayIconIdle(nativeTheme.shouldUseDarkColors))
+    updateTrayIconByMenuBar()
   })
+
+  // 监听屏幕/显示器变化（壁纸变化导致 Menu Bar 外观改变时也会触发）
+  screen.on('displayMetricsChanged', (_display, _metrics) => {
+    updateTrayIconByMenuBar()
+  })
+
+  // 启动后先采样一次 Menu Bar 颜色
+  setTimeout(() => updateTrayIconByMenuBar(), 1000)
 
   tray.on('double-click', () => {
     const win = getMainWindow()
