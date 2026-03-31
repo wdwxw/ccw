@@ -443,11 +443,20 @@ export function TerminalPanel(): React.ReactElement {
         })
         return
       }
+
+      // Cmd+数字 (1-9): 切换到对应索引的 session（仅在终端有焦点时触发）
+      if (e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && lastFocusArea.current === 'terminal') {
+        const num = parseInt(e.key, 10)
+        if (num >= 1 && num <= 9) {
+          e.preventDefault()
+          handleSwitchSession(num - 1)
+        }
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [handleSwitchSession])
 
   // 通过 IPC 接收主进程转发的 Cmd+T / Cmd+W（原生菜单拦截后转发）
   useEffect(() => {
