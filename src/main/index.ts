@@ -246,7 +246,6 @@ function createWindow(): BrowserWindow {
     backgroundColor: '#0D1117',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
       nodeIntegration: false,
       contextIsolation: true
     }
@@ -259,10 +258,12 @@ function createWindow(): BrowserWindow {
   // Cmd+W：发 IPC 给渲染进程处理关闭 tab，只有 1 个 tab 时隐藏窗口到 Tray
   mainWindow.webContents.on('before-input-event', (_e, input) => {
     if (input.type === 'keyDown' && input.key === 'w' && input.meta && !input.shift && !input.alt && !input.control) {
+      console.log('[CCW-MAIN] Cmd+W detected, sending app:close-tab, isLoading=', mainWindow.webContents.isLoading())
       _e.preventDefault()
       mainWindow.webContents.send('app:close-tab')
     }
     if (input.type === 'keyDown' && input.key === 't' && input.meta && !input.shift && !input.alt && !input.control) {
+      console.log('[CCW-MAIN] Cmd+T detected, sending app:new-tab')
       _e.preventDefault()
       mainWindow.webContents.send('app:new-tab')
     }
@@ -493,7 +494,9 @@ app.whenReady().then(async () => {
           { role: 'cut' },
           { role: 'copy' },
           { role: 'paste' },
-          { role: 'selectAll' }
+          { role: 'selectAll' },
+          { type: 'separator' },
+          { role: 'toggleDevTools' }
         ]
       },
       {

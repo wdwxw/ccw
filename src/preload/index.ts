@@ -48,12 +48,20 @@ const api = {
       ipcRenderer.invoke('app:openExternal', command, cwd),
     detectInstalledApps: () => ipcRenderer.invoke('app:detectInstalledApps'),
     onCloseTab: (cb: () => void) => {
-      const handler = () => cb()
+      console.log('[CCW-PRELOAD] onCloseTab registered')
+      const handler = (_event: Electron.IpcRendererEvent) => {
+        console.log('[CCW-PRELOAD] app:close-tab received, calling cb')
+        cb()
+      }
       ipcRenderer.on('app:close-tab', handler)
       return () => ipcRenderer.removeListener('app:close-tab', handler)
     },
     onNewTab: (cb: () => void) => {
-      const handler = () => cb()
+      console.log('[CCW-PRELOAD] onNewTab registered')
+      const handler = (_event: Electron.IpcRendererEvent) => {
+        console.log('[CCW-PRELOAD] app:new-tab received, calling cb')
+        cb()
+      }
       ipcRenderer.on('app:new-tab', handler)
       return () => ipcRenderer.removeListener('app:new-tab', handler)
     },

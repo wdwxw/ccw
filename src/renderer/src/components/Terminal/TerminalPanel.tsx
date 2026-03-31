@@ -10,7 +10,10 @@ import { TerminalToolbar } from './TerminalToolbar'
 import { CommandInput, CommandInputHandle } from './CommandInput'
 import { QuickButtonsBar } from './QuickButtonsBar'
 import { TerminalLogModal } from './TerminalLogModal'
-import { FolderOpen, SquareX, Pencil, ArrowDown, X } from 'lucide-react'
+import { FolderOpen, SquareX, ArrowDown, X } from 'lucide-react'
+
+// 全局标记 IPC 是否已注册
+let __ipcRegistered = false
 
 // Warm terminal theme — closely mirrors reference, subtle warm shift
 const XTERM_THEME = {
@@ -54,6 +57,7 @@ interface SessionGroup {
 }
 
 export function TerminalPanel(): React.ReactElement {
+  console.log('[CCW-RENDER] TerminalPanel rendering')
   const containerRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
@@ -195,7 +199,7 @@ export function TerminalPanel(): React.ReactElement {
       const cleanup = () => {
         removeDataListener()
         removeExitListener()
-        removeScrollListener()
+        removeScrollListener.dispose()
       }
 
       const element = document.createElement('div')
@@ -307,9 +311,11 @@ export function TerminalPanel(): React.ReactElement {
   // 关闭指定 session
   const handleCloseSession = useCallback(
     async (index: number) => {
-      if (!wtId) return
+      console.log('[CCW-CLOSE] handleCloseSession called, index=', index, 'wtId=', wtId)
+      if (!wtId) { console.log('[CCW-CLOSE] abort: wtId is null'); return }
       const group = sessionGroups.current.get(wtId)
-      if (!group || group.sessions.length <= 1) return // 至少保留一个
+      console.log('[CCW-CLOSE] group=', group, 'sessions=', group?.sessions.length)
+      if (!group) { console.log('[CCW-CLOSE] abort: group not found'); return }
 
       const terminal = group.sessions[index]
       terminal.cleanup()
@@ -318,6 +324,17 @@ export function TerminalPanel(): React.ReactElement {
       terminal.element.remove()
 
       group.sessions.splice(index, 1)
+
+      if (group.sessions.length === 0) {
+        // 最后一个 session：完全清理，显示重启界面
+        sessionGroups.current.delete(wtId)
+        xtermRef.current = null
+        fitAddonRef.current = null
+        currentPtyId.current = null
+        currentWorktreeId.current = null
+        setSessionVersion((v) => v + 1)
+        return
+      }
 
       // 调整 activeIndex
       const newActive = Math.min(group.activeIndex, group.sessions.length - 1)
@@ -332,8 +349,7 @@ export function TerminalPanel(): React.ReactElement {
 
   // 开始编辑 tab 名称
   const handleStartEdit = useCallback(
-    (e: React.MouseEvent, targetWtId: string, index: number, currentName: string) => {
-      e.stopPropagation()
+    (targetWtId: string, index: number, currentName: string) => {
       setEditingTab({ wtId: targetWtId, index })
       setEditingName(currentName)
       // 下一帧聚焦输入框
@@ -435,26 +451,46 @@ export function TerminalPanel(): React.ReactElement {
 
   // 通过 IPC 接收主进程转发的 Cmd+T / Cmd+W（原生菜单拦截后转发）
   useEffect(() => {
+    if (__ipcRegistered) {
+      console.log('[CCW-IPC] Already registered, skipping')
+      return
+    }
+    __ipcRegistered = true
+
+    console.log('[CCW-IPC] Registering IPC handlers')
+    console.log('[CCW-IPC] window.api exists:', typeof (window as any).api !== 'undefined')
+    console.log('[CCW-IPC] window.api.app exists:', typeof (window as any).api?.app !== 'undefined')
+    console.log('[CCW-IPC] window.api.app.onCloseTab exists:', typeof (window as any).api?.app?.onCloseTab === 'function')
+
     const removeCloseTab = window.api.app.onCloseTab(() => {
-      if (!hasSelection || !wtId) return
+      console.log('[CCW-IPC] onCloseTab received in renderer')
+      if (!wtId) { console.log('[CCW-IPC] abort: no wtId'); return }
       const group = sessionGroups.current.get(wtId)
-      if (!group) return
-      if (group.sessions.length > 1) {
-        handleCloseSession(group.activeIndex)
+      if (!group) { console.log('[CCW-IPC] abort: no group for wtId=', wtId); return }
+      // 只有一个 session 时不关闭（防止误操作）
+      if (group.sessions.length <= 1) {
+        console.log('[CCW-IPC] abort: only one session, ignoring close')
+        return
       }
-      // 只有 1 个 session 时什么都不做（不关闭软件）
+      console.log('[CCW-IPC] Closing session, activeIndex=', group.activeIndex)
+      handleCloseSession(group.activeIndex)
     })
 
     const removeNewTab = window.api.app.onNewTab(() => {
-      if (!hasSelection || !wtId) return
+      console.log('[CCW-IPC] onNewTab received in renderer')
+      if (!wtId) { console.log('[CCW-IPC] abort: no wtId'); return }
       handleAddSession()
     })
 
+    console.log('[CCW-IPC] Handlers registered successfully')
+
     return () => {
+      console.log('[CCW-IPC] Cleanup (component unmount)')
       removeCloseTab()
       removeNewTab()
+      __ipcRegistered = false
     }
-  }, [hasSelection, wtId, handleCloseSession, handleAddSession])
+  }, [wtId, handleCloseSession, handleAddSession])
 
   // Handle window/container resize
   useEffect(() => {
@@ -528,6 +564,27 @@ export function TerminalPanel(): React.ReactElement {
       window.api.app.openExternal('open', currentCwd)
     }
   }, [currentCwd])
+
+  const handleRestartTerminal = useCallback(async () => {
+    if (!wtId || !currentCwd) return
+    const terminal = await createTerminalInstance(wtId, currentCwd, 0)
+    if (!terminal) return
+    // 隐藏所有其他终端
+    for (const [, group] of sessionGroups.current) {
+      for (const t of group.sessions) {
+        t.element.style.display = 'none'
+      }
+    }
+    terminal.element.style.display = 'block'
+    sessionGroups.current.set(wtId, { sessions: [terminal], activeIndex: 0 })
+    currentWorktreeId.current = wtId
+    xtermRef.current = terminal.xterm
+    fitAddonRef.current = terminal.fitAddon
+    currentPtyId.current = terminal.ptyId
+    setTerminalPath(terminal.cwd)
+    setSessionVersion((v) => v + 1)
+    await activateSession(wtId, terminal, true)
+  }, [wtId, currentCwd, createTerminalInstance, activateSession])
 
   const handleScrollToBottom = useCallback(() => {
     xtermRef.current?.scrollToBottom()
@@ -732,36 +789,28 @@ export function TerminalPanel(): React.ReactElement {
                     onClick={(e) => e.stopPropagation()}
                   />
                 ) : (
-                  <span className="max-w-[80px] truncate">{session.name}</span>
+                  <span
+                    className="max-w-[80px] truncate"
+                    onDoubleClick={() => wtId && handleStartEdit(wtId, i, session.name)}
+                    title="双击重命名"
+                  >{session.name}</span>
                 )}
-                {/* Edit + close — visible on hover */}
+                {/* Close button — visible on hover */}
                 {!isEditing && (
                   <span
-                    className="invisible group-hover:visible flex items-center gap-[2px]"
+                    className="flex items-center gap-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-100"
                     style={{ marginLeft: 2 }}
                   >
                     <span
                       className="flex items-center justify-center w-3 h-3 rounded"
                       style={{ color: 'var(--t4)' }}
-                      onClick={(e) => wtId && handleStartEdit(e, wtId, i, session.name)}
-                      title="重命名"
+                      onClick={(e) => { e.stopPropagation(); handleCloseSession(i) }}
+                      title="关闭"
                       onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--t3)')}
                       onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--t4)')}
                     >
-                      <Pencil size={8} />
+                      <X size={8} />
                     </span>
-                    {sessionCount > 1 && (
-                      <span
-                        className="flex items-center justify-center w-3 h-3 rounded"
-                        style={{ color: 'var(--t4)' }}
-                        onClick={(e) => { e.stopPropagation(); handleCloseSession(i) }}
-                        title="关闭"
-                        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--t3)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--t4)')}
-                      >
-                        <X size={8} />
-                      </span>
-                    )}
                   </span>
                 )}
               </div>
@@ -871,7 +920,36 @@ export function TerminalPanel(): React.ReactElement {
       {/* Terminal body */}
       <div className="relative flex-1 overflow-hidden">
         {hasSelection ? (
-          <div ref={containerRef} className="relative h-full w-full" style={{ background: '#0f0e0c' }} onContextMenu={handleContextMenu} onMouseDown={() => { lastFocusArea.current = 'terminal' }} onDragOver={handleDragOver} onDrop={handleDrop} />
+          <div className="relative h-full w-full" style={{ background: '#0f0e0c' }}>
+            {/* containerRef 始终挂载，保证创建终端时 DOM 节点可用 */}
+            <div ref={containerRef} className="absolute inset-0" onContextMenu={handleContextMenu} onMouseDown={() => { lastFocusArea.current = 'terminal' }} onDragOver={handleDragOver} onDrop={handleDrop} />
+            {/* 终端已关闭时显示重启界面 */}
+            {sessionCount === 0 && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: '#0f0e0c' }}>
+                <svg width="36" height="36" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ color: 'var(--t4)', opacity: 0.4 }}>
+                  <rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/>
+                  <path d="M4 6l2.5 2L4 10M8.5 10h3.5"/>
+                </svg>
+                <p style={{ color: 'var(--t3)', fontSize: 'calc(12px * var(--font-scale))', opacity: 0.8 }}>终端已关闭</p>
+                <button
+                  onClick={handleRestartTerminal}
+                  className="rounded px-3 py-1 transition-colors duration-100"
+                  style={{
+                    fontSize: 'calc(12px * var(--font-scale))',
+                    color: 'var(--t2)',
+                    background: 'var(--color-bg-elevated)',
+                    border: '0.5px solid var(--color-border)',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--hv)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-bg-elevated)' }}
+                >
+                  重启终端
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3">
             <svg width="40" height="40" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"
