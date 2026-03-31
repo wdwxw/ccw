@@ -494,9 +494,10 @@ app.whenReady().then(async () => {
           { role: 'cut' },
           { role: 'copy' },
           { role: 'paste' },
-          { role: 'selectAll' },
-          { type: 'separator' },
-          { role: 'toggleDevTools' }
+          { role: 'selectAll' }
+          // NOTE: toggleDevTools 快捷键已临时屏蔽，如需调试请手动取消注释下行
+          // { type: 'separator' },
+          // { role: 'toggleDevTools' }
         ]
       },
       {
