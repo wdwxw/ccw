@@ -90,7 +90,11 @@ export const CommandInput = forwardRef<CommandInputHandle, CommandInputProps>(
 
     const handleSend = (): void => {
       const trimmed = command.trim()
-      if (!trimmed) return
+      if (!trimmed) {
+        // 空内容时发送纯回车，让终端处理
+        onSend('')
+        return
+      }
 
       // 添加到历史记录（去重：如果与最新一条相同则不添加）
       if (commandHistory.length === 0 || commandHistory[commandHistory.length - 1] !== trimmed) {
