@@ -140,7 +140,12 @@ export function TerminalPanel(): React.ReactElement {
 
       const fitAddon = new FitAddon()
       xterm.loadAddon(fitAddon)
-      xterm.loadAddon(new WebLinksAddon())
+      xterm.loadAddon(new WebLinksAddon(
+        (event: MouseEvent, uri: string) => {
+          // 使用 Electron 的 shell.openExternal 打开链接（通过 IPC 调用主进程）
+          window.api.app.openUrl(uri)
+        }
+      ))
       xterm.loadAddon(new SearchAddon())
 
       const ptyId = `pty-${wtId}-s${sessionIdx}-${Date.now()}`

@@ -378,8 +378,8 @@ function buildTrayIconPNG(bgR: number, bgG: number, bgB: number): Buffer {
 }
 
 function buildTrayIconIdle(_isDark: boolean): Electron.NativeImage {
-  // 固定使用白色/浅色背景 (210,210,210)，CCW 镂空成深色
-  return nativeImage.createFromBuffer(buildTrayIconPNG(210, 210, 210), { scaleFactor: 2 })
+  // 固定使用橙色背景 (255,165,0)，CCW 镂空成深色
+  return nativeImage.createFromBuffer(buildTrayIconPNG(255, 165, 0), { scaleFactor: 2 })
 }
 
 function buildTrayIconActive(): Electron.NativeImage {
