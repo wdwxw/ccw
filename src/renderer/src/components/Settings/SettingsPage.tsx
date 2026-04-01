@@ -205,6 +205,32 @@ export function SettingsPage(): React.ReactElement {
                 </span>
               )}
             </button>
+
+            <button
+              onClick={() => setTheme('light')}
+              className={`relative flex flex-col gap-2 rounded-lg border p-3 transition-colors ${
+                theme === 'light'
+                  ? 'border-accent bg-accent-muted'
+                  : 'border-border-muted bg-bg-secondary hover:border-border'
+              }`}
+            >
+              {/* Light 主题预览色块 */}
+              <div className="flex gap-1">
+                <div className="h-8 w-5 rounded-sm" style={{ background: '#FFFFFF' }} />
+                <div className="h-8 w-10 rounded-sm" style={{ background: '#F5F5F7' }} />
+                <div className="flex flex-col gap-1">
+                  <div className="h-3 w-8 rounded-sm" style={{ background: '#1C1C1E' }} />
+                  <div className="h-1.5 w-8 rounded-sm" style={{ background: '#D1D1D6' }} />
+                  <div className="h-1.5 w-6 rounded-sm" style={{ background: '#D1D1D6' }} />
+                </div>
+              </div>
+              <span className="text-left text-xs font-medium text-text-primary">白色</span>
+              {theme === 'light' && (
+                <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-white">
+                  <Check size={10} />
+                </span>
+              )}
+            </button>
           </div>
         </section>
 

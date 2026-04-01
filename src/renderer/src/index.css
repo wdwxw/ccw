@@ -107,6 +107,65 @@
     --orange: #C4956A;
   }
 
+  /* ── Light theme — gray-white, dark-neutral accent ───────── */
+  /*                                                              */
+  /*  Palette:                                                    */
+  /*  bg0  #F5F5F7  main background (Apple light gray)          */
+  /*  bg1  #FFFFFF  sidebar / cards                              */
+  /*  bg2  #EBEBED  tertiary surfaces                            */
+  /*  bg3  #FAFAFA  elevated surfaces                            */
+  /*  t1   #1C1C1E  primary text (Apple near-black)             */
+  /*  t2   #636366  secondary text                               */
+  /*  t3   #8E8E93  muted text                                   */
+  /*  t4   #AEAEB2  very-muted text                             */
+  /*  accent #1C1C1E dark for high-contrast on white            */
+  [data-theme="light"] {
+    --color-bg-primary:    #F5F5F7;
+    --color-bg-secondary:  #FFFFFF;
+    --color-bg-tertiary:   #EBEBED;
+    --color-bg-elevated:   #FAFAFA;
+
+    --color-accent:        #1C1C1E;
+    --color-accent-hover:  #3A3A3C;
+    --color-accent-muted:  rgba(28, 28, 30, 0.07);
+    --color-accent-subtle: #F2F2F7;
+    --color-accent-surface:#E5E5EA;
+    --color-accent-glow:   #D1D1D6;
+
+    --color-text-primary:  #1C1C1E;
+    --color-text-secondary:#636366;
+    --color-text-muted:    #AEAEB2;
+
+    --color-border:        #D1D1D6;
+    --color-border-muted:  #E5E5EA;
+
+    --color-success:       #28A745;
+    --color-success-subtle:#F0FFF4;
+    --color-warning:       #B45309;
+    --color-warning-subtle:#FFFBEB;
+    --color-danger:        #DC2626;
+    --color-danger-subtle: #FFF5F5;
+
+    --color-terminal-bg:   #1e1e1e;
+    --color-terminal-green:#3FB950;
+    --color-terminal-cyan: #58D1EB;
+    --color-terminal-yellow:#D29922;
+
+    /* shorthand tokens — dark-on-light */
+    --bs:     rgba(0, 0, 0, 0.08);
+    --bm:     rgba(0, 0, 0, 0.12);
+    --hv:     rgba(0, 0, 0, 0.04);
+    --hv2:    rgba(0, 0, 0, 0.08);
+    --ac:     rgba(0, 0, 0, 0.06);
+    --bg-btn: rgba(0, 0, 0, 0.04);
+    --ac-focus: rgba(0, 0, 0, 0.20);
+    --t1:     #1C1C1E;
+    --t2:     #636366;
+    --t3:     #8E8E93;
+    --t4:     #AEAEB2;
+    --orange: #1C1C1E;
+  }
+
   /* ── Global resets ────────────────────────────────────────── */
   *, *::before, *::after {
     box-sizing: border-box;
@@ -169,6 +228,12 @@
   [data-theme="brown"] .border-border-muted { border-color: rgba(255,220,160,0.05); }
   [data-theme="brown"] ::-webkit-scrollbar-thumb { background: rgba(255,220,160,0.10); }
   [data-theme="brown"] ::-webkit-scrollbar-thumb:hover { background: rgba(255,220,160,0.20); }
+
+  /* ── Light overrides for Tailwind border classes ──────────── */
+  [data-theme="light"] .border-border       { border-color: #D1D1D6; }
+  [data-theme="light"] .border-border-muted { border-color: #E5E5EA; }
+  [data-theme="light"] ::-webkit-scrollbar-thumb { background: #C7C7CC; }
+  [data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #AEAEB2; }
 }
 
 /* CCW: Claude Code task-complete notification dot animation */

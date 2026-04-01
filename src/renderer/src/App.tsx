@@ -15,7 +15,8 @@ export default function App(): React.ReactElement {
   }, [loadRepos, loadSettings])
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme === 'brown' ? 'brown' : '')
+    const themeAttr = theme === 'brown' ? 'brown' : theme === 'light' ? 'light' : ''
+    document.documentElement.setAttribute('data-theme', themeAttr)
   }, [theme])
 
   useEffect(() => {

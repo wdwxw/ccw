@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { ExternalApp, QuickButton } from '../types'
 
-type Theme = 'dazi' | 'brown'
+type Theme = 'dazi' | 'brown' | 'light'
 type FontScale = 1 | 1.25 | 1.5
 
 interface SettingsState {
