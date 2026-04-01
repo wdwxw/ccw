@@ -645,18 +645,36 @@ export function TerminalPanel(): React.ReactElement {
     }
   }, [])
 
-  // 拖拽图片到终端区域
+  // 拖拽到终端区域（支持图片和文本）
   const handleDragOver = useCallback((e: React.DragEvent) => {
     const hasImage = Array.from(e.dataTransfer.items).some(
       (item) => item.kind === 'file' && item.type.startsWith('image/')
     )
-    if (hasImage) {
+    const hasText = Array.from(e.dataTransfer.items).some(
+      (item) => item.kind === 'string'
+    )
+    if (hasImage || hasText) {
       e.preventDefault()
       e.dataTransfer.dropEffect = 'copy'
     }
   }, [])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
+    // 优先处理文本拖拽
+    const textItem = Array.from(e.dataTransfer.items).find((item) => item.kind === 'string')
+    if (textItem) {
+      e.preventDefault()
+      textItem.getAsString((text) => {
+        if (currentPtyId.current && text) {
+          // 将拖拽的文本写入终端（模拟粘贴）
+          window.api.pty.write(currentPtyId.current, text)
+        }
+        xtermRef.current?.focus()
+      })
+      return
+    }
+
+    // 处理图片拖拽
     const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'))
     if (files.length === 0) return
     e.preventDefault()
